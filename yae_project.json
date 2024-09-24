@@ -1,0 +1,9 @@
+{
+    "name": "Cuda",
+    "modules_dir": "src",
+    "cloned_dependencies_dir": "cloned_dependencies",
+    "enable_lto_globally": true,
+    "cpp": {
+        "standard": "20"
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "ModuleType": "Executable",
+    "ExtraCMakeFiles": [
+        "add_cuda"
+    ],
+    "Dependencies": {
+        "Public": [],
+        "Private": []
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "YAE: Generate",
+            "type": "shell",
+            "command": "C:/data/soft/Python/3_12/python.exe",
+            "args": [
+                "${workspaceFolder}/yae/scripts/make_project_files.py",
+                "--project_dir=${workspaceFolder}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "YAE: Generate and Configure",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "YAE: Generate",
+                "CMake: configure"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "YAE: Modules Git Status",
+            "type": "shell",
+            "command": "C:/data/soft/Python/3_12/python.exe",
+            "args": [
+                "${workspaceFolder}/yae/scripts/modules_git_status.py",
+                "--project_dir=${workspaceFolder}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Apply clang-format",
+            "type": "shell",
+            "command": "find ./src -regex '.*\\.\\(cpp\\|hpp\\)' -exec clang-format -i {} \\;",
+            "problemMatcher": []
+        }
+    ]
+}
