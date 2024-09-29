@@ -4,10 +4,7 @@
         "add_cuda"
     ],
     "Dependencies": {
-        "Public": [
-            "fmtlib",
-            "edt"
-        ],
+        "Public": [],
         "Private": []
     }
 }

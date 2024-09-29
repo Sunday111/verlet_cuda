@@ -53,7 +53,6 @@ void Main()
     // Perform SAXPY on elements
     float execute_kernel_ms =  MeasureMillis([&]{
         saxpy<<<(N + 255) / 256, 256>>>(N, 2.0f, d_x.get(), d_y.get());
-
     });
     printf("    SAXPY: %.2fms\n", execute_kernel_ms);
 

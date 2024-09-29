@@ -3,10 +3,17 @@
     "ExtraCMakeFiles": [
         "add_cuda"
     ],
+    "CopyDirectoriesAfterBuild": [
+        "content"
+    ],
     "Dependencies": {
+        "GitPackages": [
+            "https://github.com/Sunday111/klgl main"
+        ],
         "Public": [
             "fmtlib",
-            "edt"
+            "edt",
+            "klgl"
         ],
         "Private": []
     }
