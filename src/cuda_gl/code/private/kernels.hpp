@@ -4,7 +4,7 @@
 #include "constants.hpp"
 #include "driver_types.h"
 
-namespace verlet_cuda
+namespace verlet
 {
 
 using namespace edt::lazy_matrix_aliases;  // NOLINT
@@ -48,4 +48,4 @@ public:
     SolveCollisions_ManyRows(cudaStream_t& stream, GridCell* cells, Vec2f* positions, edt::Vec2<size_t> offset);
     static void UpdatePositions(cudaStream_t& stream, size_t num_objects, Vec2f* positions, Vec2f* old_positions);
 };
-}  // namespace verlet_cuda
+}  // namespace verlet

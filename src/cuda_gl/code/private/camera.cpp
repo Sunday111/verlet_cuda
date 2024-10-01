@@ -1,6 +1,6 @@
 #include "camera.hpp"
 
-namespace verlet_cuda
+namespace verlet
 {
 edt::FloatRange2Df Camera::ComputeRange(const edt::FloatRange2Df& world_range) const
 {
@@ -60,4 +60,4 @@ void Camera::Pan(const edt::Vec2f& delta)
     }
 }
 
-}  // namespace verlet_cuda
+}  // namespace verlet

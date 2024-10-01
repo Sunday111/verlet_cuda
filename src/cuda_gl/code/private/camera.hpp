@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <chrono>
 
-namespace verlet_cuda
+namespace verlet
 {
 
 template <typename T>
@@ -68,4 +68,4 @@ private:
     edt::Vec2f eye_{};
     std::optional<ValueAnimation<edt::Vec2f>> eye_animation_;
 };
-}  // namespace verlet_cuda
+}  // namespace verlet

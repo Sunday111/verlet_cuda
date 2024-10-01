@@ -1,4 +1,4 @@
-#include "gl_interop.hpp"
+#include "cuda_gl_interop.hpp"
 
 #include <cuda_gl_interop.h>
 #include <cuda_runtime.h>

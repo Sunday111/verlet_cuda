@@ -4,7 +4,7 @@
 #include <bit>
 #include "EverydayTools/Math/Math.hpp"
 
-namespace verlet_cuda::kernels_impl
+namespace verlet::kernels_impl
 {
 
 constexpr size_t GetChunkSize(size_t total_amount, size_t num_chunks, size_t chunk_index)
@@ -165,7 +165,7 @@ __global__ void UpdatePositions(size_t num_objects, edt::Vec2f* positions, edt::
 }
 }
 
-namespace verlet_cuda
+namespace verlet
 {
 
 void Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, size_t num_objects, edt::Vec2f* positions)
