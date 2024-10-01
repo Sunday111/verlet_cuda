@@ -60,4 +60,4 @@ void Camera::Pan(const edt::Vec2f& delta)
     }
 }
 
-}  // namespace verlet
+}  // namespace verlet_cuda

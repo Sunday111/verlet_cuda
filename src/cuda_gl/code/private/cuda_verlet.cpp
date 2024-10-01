@@ -1,31 +1,31 @@
+#include <fmt/chrono.h>
+
+#include <EverydayTools/Math/FloatRange.hpp>
 #include <EverydayTools/Math/Math.hpp>
+#include <klgl/mesh/mesh_data.hpp>
+#include <klgl/mesh/procedural_mesh_generator.hpp>
 #include <random>
 
+#include "camera.hpp"
+#include "constants.hpp"
+#include "cuda/cuda_helpers.hpp"
+#include "cuda/gl_interop.hpp"
+#include "imgui.h"
+#include "kernels.hpp"
 #include "klgl/application.hpp"
 #include "klgl/error_handling.hpp"
+#include "klgl/events/event_listener_method.hpp"
+#include "klgl/events/event_manager.hpp"
+#include "klgl/events/mouse_events.hpp"
 #include "klgl/opengl/gl_api.hpp"
 #include "klgl/opengl/vertex_attribute_helper.hpp"
 #include "klgl/reflection/matrix_reflect.hpp"  // IWYU pragma: keep
 #include "klgl/shader/shader.hpp"
 #include "klgl/template/member_offset.hpp"
-#include "klgl/ui/imgui_helpers.hpp"
-#include "klgl/window.hpp"
 #include "klgl/texture/procedural_texture_generator.hpp"
 #include "klgl/texture/texture.hpp"
-#include <klgl/mesh/procedural_mesh_generator.hpp>
-#include <klgl/mesh/mesh_data.hpp>
-#include "cuda/gl_interop.hpp"
-#include <EverydayTools/Math/FloatRange.hpp>
-#include "camera.hpp"
-#include "klgl/events/event_listener_method.hpp"
-#include "klgl/events/event_manager.hpp"
-#include "klgl/events/mouse_events.hpp"
-#include "cuda/cuda_helpers.hpp"
-#include "kernels.hpp"
-#include "constants.hpp"
-#include "imgui.h"
+#include "klgl/window.hpp"
 #include "time.hpp"
-#include <fmt/chrono.h>
 
 namespace verlet_cuda
 {
@@ -40,11 +40,11 @@ class VerletCudaApp : public klgl::Application
 {
 public:
     using GL = klgl::OpenGl;
-    using ColorType = edt::Vec4f;
+    using ColorType = Vec4f;
     using ColorAttribHelper = klgl::VertexBufferHelperStatic<ColorType>;
-    using PositionType = edt::Vec2f;
+    using PositionType = Vec2f;
     using PositionAttribHelper = klgl::VertexBufferHelperStatic<PositionType>;
-    using ScaleType = edt::Vec2f;
+    using ScaleType = Vec2f;
     using ScaleAttribHelper = klgl::VertexBufferHelperStatic<ScaleType>;
 
     static constexpr unsigned kSeed = 12345;
@@ -57,7 +57,6 @@ public:
 
     void Initialize() override
     {
-
         klgl::Application::Initialize();
 
         GL::SetClearColor({});
@@ -89,19 +88,28 @@ public:
         GL::BindBuffer(klgl::GlBufferType::Array, color_vbo_);
         ColorAttribHelper::AttributePointer(a_color_);
         ColorAttribHelper::AttributeDivisor(a_color_, 1);
-        GL::BufferData(klgl::GlBufferType::Array, sizeof(ColorType) * constants::kMaxObjectsCount, klgl::GlUsage::DynamicDraw);
+        GL::BufferData(
+            klgl::GlBufferType::Array,
+            sizeof(ColorType) * constants::kMaxObjectsCount,
+            klgl::GlUsage::DynamicDraw);
 
         PositionAttribHelper::EnableVertexAttribArray(a_position_);
         GL::BindBuffer(klgl::GlBufferType::Array, position_vbo_);
         PositionAttribHelper::AttributePointer(a_position_);
         PositionAttribHelper::AttributeDivisor(a_position_, 1);
-        GL::BufferData(klgl::GlBufferType::Array, sizeof(PositionType) * constants::kMaxObjectsCount, klgl::GlUsage::DynamicDraw);
+        GL::BufferData(
+            klgl::GlBufferType::Array,
+            sizeof(PositionType) * constants::kMaxObjectsCount,
+            klgl::GlUsage::DynamicDraw);
 
         ScaleAttribHelper::EnableVertexAttribArray(a_scale_);
         GL::BindBuffer(klgl::GlBufferType::Array, scale_vbo_);
         ScaleAttribHelper::AttributePointer(a_scale_);
         ScaleAttribHelper::AttributeDivisor(a_scale_, 1);
-        GL::BufferData(klgl::GlBufferType::Array, sizeof(ScaleType) * constants::kMaxObjectsCount, klgl::GlUsage::DynamicDraw);
+        GL::BufferData(
+            klgl::GlBufferType::Array,
+            sizeof(ScaleType) * constants::kMaxObjectsCount,
+            klgl::GlUsage::DynamicDraw);
 
         cudaStreamCreate(&cuda_stream_);
 
@@ -118,13 +126,15 @@ public:
     void SendObjects(size_t ignore_first_n)
     {
         GL::BindBuffer(klgl::GlBufferType::Array, position_vbo_);
-        GL::BufferSubData(klgl::GlBufferType::Array, ignore_first_n, std::span{ positions_ }.subspan(ignore_first_n));
+        GL::BufferSubData(klgl::GlBufferType::Array, ignore_first_n, std::span{positions_}.subspan(ignore_first_n));
         GL::BindBuffer(klgl::GlBufferType::Array, color_vbo_);
-        GL::BufferSubData(klgl::GlBufferType::Array, ignore_first_n, std::span{ colors_ }.subspan(ignore_first_n));
+        GL::BufferSubData(klgl::GlBufferType::Array, ignore_first_n, std::span{colors_}.subspan(ignore_first_n));
         GL::BindBuffer(klgl::GlBufferType::Array, scale_vbo_);
-        GL::BufferSubData(klgl::GlBufferType::Array, ignore_first_n, std::span{ scales_ }.subspan(ignore_first_n));
+        GL::BufferSubData(klgl::GlBufferType::Array, ignore_first_n, std::span{scales_}.subspan(ignore_first_n));
 
-        CopyCudaArrayToDevice(std::span{ positions_ }.subspan(ignore_first_n), device_old_positions_.get() + ignore_first_n);
+        CopyCudaArrayToDevice(
+            std::span{positions_}.subspan(ignore_first_n),
+            device_old_positions_.get() + ignore_first_n);
 
         CudaGlInterop::UnregisterBuffer(positions_vbo_cuda_);
         positions_vbo_cuda_ = CudaGlInterop::RegisterBuffer(position_vbo_);
@@ -132,19 +142,23 @@ public:
 
     void GenerateRandomObjects()
     {
-        std::mt19937 rnd(kSeed); // NOLINT
-        std::uniform_real_distribution<float> pos_distr_x(constants::kWorldRange.x.begin + 10.f, constants::kWorldRange.x.end - 10.f);
-        std::uniform_real_distribution<float> pos_distr_y(constants::kWorldRange.y.begin + 10.f, constants::kWorldRange.y.end - 10.f);
+        std::mt19937 rnd(kSeed);  // NOLINT
+        std::uniform_real_distribution<float> pos_distr_x(
+            constants::kWorldRange.x.begin + 10.f,
+            constants::kWorldRange.x.end - 10.f);
+        std::uniform_real_distribution<float> pos_distr_y(
+            constants::kWorldRange.y.begin + 10.f,
+            constants::kWorldRange.y.end - 10.f);
         std::uniform_real_distribution<float> color_distr(0.f, 1.f);
         size_t objects_count = constants::kMaxObjectsCount;
         colors_.reserve(objects_count);
         scales_.reserve(objects_count);
         positions_.reserve(objects_count);
-        for ([[maybe_unused]] size_t i : std::views::iota(size_t{ 0 }, objects_count))
+        for ([[maybe_unused]] size_t i : std::views::iota(size_t{0}, objects_count))
         {
             AddObject(
-                { pos_distr_x(rnd), pos_distr_y(rnd) },
-                { color_distr(rnd), color_distr(rnd), color_distr(rnd), color_distr(rnd) },
+                {pos_distr_x(rnd), pos_distr_y(rnd)},
+                {color_distr(rnd), color_distr(rnd), color_distr(rnd), color_distr(rnd)},
                 Vec2f{} + 0.5f);
         }
 
@@ -166,42 +180,45 @@ public:
             vertices.emplace_back(MeshVertex{
                 .vertex = mesh_data.vertices[i],
                 .tex_coord = mesh_data.texture_coordinates[i],
-                });
+            });
         }
 
-        mesh_ = klgl::MeshOpenGL::MakeFromData(std::span{ vertices }, std::span{ mesh_data.indices }, mesh_data.topology);
+        mesh_ = klgl::MeshOpenGL::MakeFromData(std::span{vertices}, std::span{mesh_data.indices}, mesh_data.topology);
         mesh_->Bind();
 
-        a_vertex_ = shader_->GetInfo().VerifyAndGetVertexAttributeLocation<edt::Vec2f>("a_vertex");
+        a_vertex_ = shader_->GetInfo().VerifyAndGetVertexAttributeLocation<Vec2f>("a_vertex");
         {
-            using AttribHelper = klgl::VertexBufferHelperStatic<edt::Vec2f>;
+            using AttribHelper = klgl::VertexBufferHelperStatic<Vec2f>;
             AttribHelper::EnableVertexAttribArray(a_vertex_);
             AttribHelper::AttributePointer(a_vertex_, sizeof(MeshVertex), klgl::MemberOffset<&MeshVertex::vertex>());
             AttribHelper::AttributeDivisor(a_vertex_, 0);
         }
 
-        a_tex_coord_ = shader_->GetInfo().VerifyAndGetVertexAttributeLocation<edt::Vec2f>("a_tex_coord");
+        a_tex_coord_ = shader_->GetInfo().VerifyAndGetVertexAttributeLocation<Vec2f>("a_tex_coord");
         {
-            using AttribHelper = klgl::VertexBufferHelperStatic<edt::Vec2f>;
+            using AttribHelper = klgl::VertexBufferHelperStatic<Vec2f>;
             AttribHelper::EnableVertexAttribArray(a_tex_coord_);
-            AttribHelper::AttributePointer(a_tex_coord_, sizeof(MeshVertex), klgl::MemberOffset<&MeshVertex::tex_coord>());
+            AttribHelper::AttributePointer(
+                a_tex_coord_,
+                sizeof(MeshVertex),
+                klgl::MemberOffset<&MeshVertex::tex_coord>());
             AttribHelper::AttributeDivisor(a_tex_coord_, 0);
         }
     }
 
     void CreateCircleMaskTexture()
     {
-        constexpr auto size = edt::Vec2<size_t>{} + 128;
+        constexpr auto size = Vec2<size_t>{} + 128;
         texture_ = klgl::Texture::CreateEmpty(size, klgl::GlTextureInternalFormat::R8);
         const auto pixels = klgl::ProceduralTextureGenerator::CircleMask(size, 2);
-        texture_->SetPixels<klgl::GlPixelBufferLayout::R>(std::span{ pixels });
+        texture_->SetPixels<klgl::GlPixelBufferLayout::R>(std::span{pixels});
         klgl::OpenGl::SetTextureMinFilter(klgl::GlTargetTextureType::Texture2d, klgl::GlTextureFilter::Nearest);
         klgl::OpenGl::SetTextureMagFilter(klgl::GlTargetTextureType::Texture2d, klgl::GlTextureFilter::Linear);
         glGenerateMipmap(GL_TEXTURE_2D);
         shader_->SetUniform(u_texture_, *texture_);
     }
 
-    void AddObject(const edt::Vec2f& position, const edt::Vec4f& color, const edt::Vec2f& scale)
+    void AddObject(const Vec2f& position, const Vec4f& color, const Vec2f& scale)
     {
         positions_.push_back(position);
         colors_.push_back(color);
@@ -223,7 +240,7 @@ public:
             camera_.Pan((GetLastFrameDurationSeconds() * camera_.GetRange().Extent() * offset) * camera_.pan_speed);
         }
     }
-    
+
     void OnMouseScroll(const klgl::events::OnMouseScroll& event)
     {
         if (!ImGui::GetIO().WantCaptureMouse)
@@ -255,7 +272,7 @@ public:
         const auto screen_range = edt::FloatRange2Df::FromMinMax({}, GetWindow().GetSize2f());  // 0 -> resolution
         auto [x, y] = ImGui::GetMousePos();
         y = screen_range.y.Extent() - y;
-        return edt::Math::TransformPos(screen_to_world_, Vec2f{ x, y });
+        return edt::Math::TransformPos(screen_to_world_, Vec2f{x, y});
     }
 
     void Tick() override
@@ -273,44 +290,67 @@ public:
         device_positions = device_positions.subspan(0, positions_.size());
 
         // Do simulation substeps
-        auto sim_time = MeasureTime([&] {
-            for (size_t substep = 0; substep != constants::kNumSubSteps; ++substep) {
-                cudaMemsetAsync(grid_cells_.get(), 0, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_);
-                Kernels::PopulateGrid(cuda_stream_, grid_cells_.get(), positions_.size(), device_positions.data());
+        auto sim_time = MeasureTime(
+            [&]
+            {
+                for (size_t substep = 0; substep != constants::kNumSubSteps; ++substep)
+                {
+                    cudaMemsetAsync(grid_cells_.get(), 0, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_);
+                    Kernels::PopulateGrid(cuda_stream_, grid_cells_.get(), positions_.size(), device_positions.data());
 
-                // CheckGrid(device_positions);
+                    // CheckGrid(device_positions);
 
-
-                constexpr bool kDoRows = false;
-                if constexpr (kDoRows) {
-                    for (size_t cell_y = 1; cell_y != constants::kGridSize.y() - 1; ++cell_y) {
-                        for (size_t offset_x = 0; offset_x != 3; ++offset_x) {
-                            Kernels::SolveCollisions_OneRow(cuda_stream_, grid_cells_.get(), device_positions.data(), cell_y, offset_x);
+                    constexpr bool kDoRows = false;
+                    if constexpr (kDoRows)
+                    {
+                        for (size_t cell_y = 1; cell_y != constants::kGridSize.y() - 1; ++cell_y)
+                        {
+                            for (size_t offset_x = 0; offset_x != 3; ++offset_x)
+                            {
+                                Kernels::SolveCollisions_OneRow(
+                                    cuda_stream_,
+                                    grid_cells_.get(),
+                                    device_positions.data(),
+                                    cell_y,
+                                    offset_x);
+                            }
                         }
                     }
-                } else {
-                    for (size_t offset_y = 0; offset_y != 3; ++offset_y) {
-                        for (size_t offset_x = 0; offset_x != 3; ++offset_x) {
-                            // fmt::println("Substep begin. Grid size: {}x{}. Offset: {} {}\n", constants::kGridSize.x(), constants::kGridSize.y(), offset_x, offset_y);
-                            Kernels::SolveCollisions_ManyRows(cuda_stream_, grid_cells_.get(), device_positions.data(), {offset_x, offset_y});
-                            // cudaStreamSynchronize(cuda_stream_);
-                            // fmt::println("Substep end\n");
+                    else
+                    {
+                        for (size_t offset_y = 0; offset_y != 3; ++offset_y)
+                        {
+                            for (size_t offset_x = 0; offset_x != 3; ++offset_x)
+                            {
+                                // fmt::println("Substep begin. Grid size: {}x{}. Offset: {} {}\n",
+                                // constants::kGridSize.x(), constants::kGridSize.y(), offset_x, offset_y);
+                                Kernels::SolveCollisions_ManyRows(
+                                    cuda_stream_,
+                                    grid_cells_.get(),
+                                    device_positions.data(),
+                                    {offset_x, offset_y});
+                                // cudaStreamSynchronize(cuda_stream_);
+                                // fmt::println("Substep end\n");
+                            }
                         }
                     }
+                    Kernels::UpdatePositions(
+                        cuda_stream_,
+                        positions_.size(),
+                        device_positions.data(),
+                        device_old_positions_.get());
                 }
-                Kernels::UpdatePositions(cuda_stream_, positions_.size(), device_positions.data(), device_old_positions_.get());
-            }
 
-            cudaStreamSynchronize(cuda_stream_);
-            CudaGlInterop::UnmapResource(positions_vbo_cuda_);
-        });
+                cudaStreamSynchronize(cuda_stream_);
+                CudaGlInterop::UnmapResource(positions_vbo_cuda_);
+            });
 
-        if (ImGui::CollapsingHeader("Perf")) {
+        if (ImGui::CollapsingHeader("Perf"))
+        {
             std::string txt = fmt::format("{}", sim_time);
-            ImGui::Text("%s", txt.data());
-            ImGui::Text("Framerate: %f", GetFramerate());
+            ImGui::Text("%s", txt.data());                 // NOLINT
+            ImGui::Text("Framerate: %f", GetFramerate());  // NOLINT
         }
-
 
         shader_->SetUniform(u_world_to_view_, world_to_view_.Transposed());
         shader_->SendUniforms();
@@ -321,7 +361,7 @@ public:
         {
             const auto mouse_position = GetMousePositionInWorldCoordinates();
             size_t prev_count = positions_.size();
-            AddObject(mouse_position, { 1, 0, 0, 1 }, { 0.5f, 0.5f });
+            AddObject(mouse_position, {1, 0, 0, 1}, {0.5f, 0.5f});
             SendObjects(prev_count);
         }
     }
@@ -330,9 +370,19 @@ public:
     {
         static std::vector<GridCell> cells;
         cells.resize(constants::kGridNumCells);
-        auto err = cudaMemcpyAsync(cells.data(), grid_cells_.get(), std::span{cells}.size_bytes(), cudaMemcpyDeviceToHost, cuda_stream_);
+        auto err = cudaMemcpyAsync(
+            cells.data(),
+            grid_cells_.get(),
+            std::span{cells}.size_bytes(),
+            cudaMemcpyDeviceToHost,
+            cuda_stream_);
         assert(err == cudaSuccess);
-        err = cudaMemcpyAsync(positions_.data(), device_positions.data(), device_positions.size_bytes(), cudaMemcpyDeviceToHost, cuda_stream_);
+        err = cudaMemcpyAsync(
+            positions_.data(),
+            device_positions.data(),
+            device_positions.size_bytes(),
+            cudaMemcpyDeviceToHost,
+            cuda_stream_);
         assert(err == cudaSuccess);
         cudaStreamSynchronize(cuda_stream_);
 
@@ -375,7 +425,7 @@ public:
         }
     }
 
-    cudaStream_t cuda_stream_;
+    cudaStream_t cuda_stream_{};
 
     std::unique_ptr<klgl::events::IEventListener> event_listener_;
 
@@ -402,14 +452,14 @@ public:
 
     std::shared_ptr<klgl::MeshOpenGL> mesh_;
 
-    klgl::UniformHandle u_texture_{ "u_texture" };
+    klgl::UniformHandle u_texture_{"u_texture"};
     std::unique_ptr<klgl::Texture> texture_;
 
-    klgl::UniformHandle u_world_to_view_ { "u_world_to_view" };
-    Mat3f world_to_view_ = edt::Mat3f::Identity();
+    klgl::UniformHandle u_world_to_view_{"u_world_to_view"};
+    Mat3f world_to_view_ = Mat3f::Identity();
 
-    Mat3f world_to_camera_ = edt::Mat3f::Identity();
-    Mat3f screen_to_world_ = edt::Mat3f::Identity();
+    Mat3f world_to_camera_ = Mat3f::Identity();
+    Mat3f screen_to_world_ = Mat3f::Identity();
 
     CudaPtr<GridCell> grid_cells_;
 };
@@ -420,7 +470,7 @@ void Main()
     app.Run();
 }
 
-} //
+}  // namespace verlet_cuda
 
 int main()
 {

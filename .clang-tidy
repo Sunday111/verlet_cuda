@@ -1,0 +1,21 @@
+Checks: "-*,\
+google-*,\
+performance-*,\
+portability-*,\
+cert-*,\
+clang-analyzer-*,\
+cppcoreguidelines-*,\
+modernize-*\
+-modernize-use-trailing-return-type,\
+-cppcoreguidelines-non-private-member-variables-in-classes,\
+-cppcoreguidelines-pro-bounds-array-to-pointer-decay,\
+-cppcoreguidelines-avoid-magic-numbers,\
+-cppcoreguidelines-macro-usage,\
+-cppcoreguidelines-pro-bounds-constant-array-index,\
+-cppcoreguidelines-special-member-functions,\
+-cppcoreguidelines-prefer-member-initializer,\
+-cppcoreguidelines-pro-type-static-cast-downcast,\
+"
+WarningsAsErrors: '*'
+# Use clang-format
+FormatStyle: file

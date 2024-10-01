@@ -68,4 +68,4 @@ private:
     edt::Vec2f eye_{};
     std::optional<ValueAnimation<edt::Vec2f>> eye_animation_;
 };
-}  // namespace verlet
+}  // namespace verlet_cuda

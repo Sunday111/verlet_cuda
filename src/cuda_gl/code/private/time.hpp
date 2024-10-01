@@ -2,8 +2,7 @@
 
 #include <chrono>
 
-template<typename F>
-auto MeasureTime(F&& f)
+inline auto MeasureTime(auto&& f)
 {
     using Clock = std::chrono::high_resolution_clock;
     using Duration = std::chrono::duration<float, std::milli>;

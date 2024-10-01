@@ -1,8 +1,7 @@
 #include "gl_interop.hpp"
-#include <cuda_runtime.h>
+
 #include <cuda_gl_interop.h>
-#include "EverydayTools/Math/Math.hpp"
-#include "EverydayTools/Math/Matrix.hpp"
+#include <cuda_runtime.h>
 
 cudaGraphicsResource* CudaGlInterop::RegisterBuffer(klgl::GlBufferId buffer)
 {
@@ -18,7 +17,7 @@ void CudaGlInterop::UnregisterBuffer(cudaGraphicsResource* resource)
     assert(err == cudaSuccess);
 }
 
-std::span<uint8_t>  CudaGlInterop::MapResourceAndGetPtr(cudaGraphicsResource* resource)
+std::span<uint8_t> CudaGlInterop::MapResourceAndGetPtr(cudaGraphicsResource* resource)
 {
     auto err = cudaGraphicsMapResources(1, &resource, 0);
     assert(err == cudaSuccess);
@@ -29,7 +28,7 @@ std::span<uint8_t>  CudaGlInterop::MapResourceAndGetPtr(cudaGraphicsResource* re
     assert(err == cudaSuccess);
 
     return std::span{
-        reinterpret_cast<uint8_t*>(device_ptr), // NOLINT
+        reinterpret_cast<uint8_t*>(device_ptr),  // NOLINT
         num_bytes,
     };
 }

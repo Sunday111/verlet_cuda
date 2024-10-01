@@ -100,11 +100,9 @@ option(BUILD_GMOCK "" OFF)
 add_subdirectory(cloned_dependencies/google/googletest/1_15_2 SYSTEM)
 
 # --------------------------------- Own Modules ----------------------------------
-add_subdirectory(src/atomic_cas)
 add_subdirectory(cloned_dependencies/Sunday111/imgui_glfw_cmake)
 add_subdirectory(cloned_dependencies/Sunday111/klgl/klgl)
 add_subdirectory(src/cuda_gl)
-add_subdirectory(src/cuda_test)
 add_subdirectory(yae/modules/examples/ecs)
 add_subdirectory(yae/modules/examples/ecs_benchmark)
 add_subdirectory(yae/modules/examples/ecs_tests)
