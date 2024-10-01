@@ -1,20 +1,11 @@
 #pragma once
 
-#include <span>
 #include <cassert>
+#include <span>
+
 #include "klgl/opengl/identifiers.hpp"
 
 struct cudaGraphicsResource;
-
-template<typename T>
-[[nodiscard]] std::span<T> ReinterpretSpan(std::span<uint8_t> span)
-{
-    assert(span.size_bytes() % sizeof(T) == 0);
-    return std::span{
-        reinterpret_cast<T*>(span.data()), // NOLINT
-        span.size_bytes() / sizeof(T),
-    };
-}
 
 class CudaGlInterop
 {

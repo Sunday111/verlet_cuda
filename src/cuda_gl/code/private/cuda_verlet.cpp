@@ -1,3 +1,4 @@
+#include <cuda_runtime.h>
 #include <fmt/chrono.h>
 
 #include <EverydayTools/Math/FloatRange.hpp>
@@ -8,7 +9,6 @@
 
 #include "camera.hpp"
 #include "constants.hpp"
-#include "cuda/cuda_helpers.hpp"
 #include "cuda/gl_interop.hpp"
 #include "imgui.h"
 #include "kernels.hpp"
@@ -25,10 +25,87 @@
 #include "klgl/texture/procedural_texture_generator.hpp"
 #include "klgl/texture/texture.hpp"
 #include "klgl/window.hpp"
-#include "time.hpp"
 
 namespace verlet_cuda
 {
+
+template <typename T>
+[[nodiscard]] constexpr std::span<T> ReinterpretSpan(std::span<uint8_t> span)
+{
+    klgl::ErrorHandling::Ensure(
+        span.size_bytes() % sizeof(T) == 0,
+        "Possibly wrong conversion: converting {} bytes to an array of objects with size {}",
+        span.size_bytes(),
+        sizeof(T));
+    return std::span{
+        reinterpret_cast<T*>(span.data()),  // NOLINT
+        span.size_bytes() / sizeof(T),
+    };
+}
+
+template <typename... Args>
+void CheckResult(cudaError_t result, fmt::format_string<Args...> format_string = "", Args&&... args)
+{
+    if (result != cudaSuccess)
+    {
+        std::string message =
+            fmt::format("Cuda operation returned an error code. Error: {}. ", cudaGetErrorString(result));
+        if (fmt::formatted_size(format_string, args...))
+        {
+            message.append("\nContext: ");
+            fmt::format_to(std::back_inserter(message), format_string, std::forward<Args>(args)...);
+        }
+
+        throw cpptrace::runtime_error(std::move(message));
+    }
+}
+
+using CudaDeleter = decltype([](auto* p) { cudaFree(p); });
+
+template <typename T>
+using CudaPtr = std::unique_ptr<T, CudaDeleter>;
+
+template <typename T>
+[[nodiscard]] CudaPtr<T> MakeCudaArray(size_t elements_count)
+{
+    T* device_ptr{};
+    cudaMalloc(&device_ptr, sizeof(T) * elements_count);
+    return CudaPtr<T>(device_ptr);
+}
+
+template <typename T, size_t extent>
+void CopyCudaArrayToDevice(std::span<T, extent> host, std::remove_const_t<T>* device)
+{
+    CheckResult(cudaMemcpy(device, host.data(), host.size_bytes(), cudaMemcpyHostToDevice));
+}
+
+template <typename T, size_t extent>
+void CopyCudaArrayToDevice(std::span<T, extent> host, const CudaPtr<std::remove_const_t<T>>& device)
+{
+    CopyCudaArrayToDevice(host, device.get());
+}
+
+template <typename T, size_t extent>
+void CopyCudaArrayToHost(std::span<T, extent> host, std::remove_const_t<T>* device)
+{
+    CheckResult(cudaMemcpy(host.data(), device, host.size_bytes(), cudaMemcpyDeviceToHost));
+}
+
+template <typename T, size_t extent>
+void CopyCudaArrayToHost(std::span<T, extent> host, const CudaPtr<std::remove_const_t<T>>& device)
+{
+    CopyCudaArrayToHost(host, device.get());
+}
+
+[[nodiscard]] inline auto MeasureTime(auto&& f)
+{
+    using Clock = std::chrono::high_resolution_clock;
+    using Duration = std::chrono::duration<float, std::milli>;
+    auto start_time = Clock::now();
+    f();
+    auto finish_time = Clock::now();
+    return std::chrono::duration_cast<Duration>(finish_time - start_time);
+}
 
 struct MeshVertex
 {
@@ -284,7 +361,11 @@ public:
 
         // Take pointer to positions from VBO
         auto device_positions = ReinterpretSpan<Vec2f>(CudaGlInterop::MapResourceAndGetPtr(positions_vbo_cuda_));
-        assert(device_positions.size() == constants::kMaxObjectsCount);
+        klgl::ErrorHandling::Ensure(
+            device_positions.size() == constants::kMaxObjectsCount,
+            "Unexpected size of positions array on device. Expected: {}. Actual: {}",
+            constants::kMaxObjectsCount,
+            device_positions.size());
 
         // Now it is a view to an array of full capacity. We need only subset of it
         device_positions = device_positions.subspan(0, positions_.size());
@@ -370,31 +451,42 @@ public:
     {
         static std::vector<GridCell> cells;
         cells.resize(constants::kGridNumCells);
-        auto err = cudaMemcpyAsync(
+        CheckResult(cudaMemcpyAsync(
             cells.data(),
             grid_cells_.get(),
             std::span{cells}.size_bytes(),
             cudaMemcpyDeviceToHost,
-            cuda_stream_);
-        assert(err == cudaSuccess);
-        err = cudaMemcpyAsync(
+            cuda_stream_));
+        CheckResult(cudaMemcpyAsync(
             positions_.data(),
             device_positions.data(),
             device_positions.size_bytes(),
             cudaMemcpyDeviceToHost,
-            cuda_stream_);
-        assert(err == cudaSuccess);
+            cuda_stream_));
         cudaStreamSynchronize(cuda_stream_);
 
         for (size_t cell_index = 0; cell_index != 100; ++cell_index)
         {
             const GridCell& cell = cells[cell_index];
-            assert(cell.num_objects <= constants::kGridMaxObjectsInCell);
+            klgl::ErrorHandling::Ensure(
+                cell.num_objects <= constants::kGridMaxObjectsInCell,
+                "Cell {} contains more objects ({}) than it supposed to ({}).",
+                cell_index,
+                cell.num_objects,
+                constants::kGridMaxObjectsInCell);
             for (size_t i = 0; i != cell.num_objects; ++i)
             {
                 auto& object_index = cell.objects[i];
-                const auto expected_cell_index = DeviceGrid::LocationToCellIndex(positions_[object_index]);
-                assert(cell_index == expected_cell_index);
+                const Vec2f& object_pos = positions_[object_index];
+                const auto expected_cell_index = DeviceGrid::LocationToCellIndex(object_pos);
+                klgl::ErrorHandling::Ensure(
+                    cell_index == expected_cell_index,
+                    "An object {} with position ({}, {}) is in the cell {}. It is expected to be in the cell {}",
+                    object_index,
+                    object_pos.x(),
+                    object_pos.y(),
+                    cell_index,
+                    expected_cell_index);
             }
         }
 
@@ -404,7 +496,6 @@ public:
             const auto cell_index = DeviceGrid::LocationToCellIndex(positions_[object_index]);
             const GridCell& cell = cells[cell_index];
 
-            assert(cell.num_objects <= constants::kGridMaxObjectsInCell);
             bool object_in_cell = false;
             for (size_t i = 0; i != cell.num_objects; ++i)
             {
@@ -416,7 +507,11 @@ public:
             }
 
             objects_without_cell += object_in_cell ? 0 : 1;
-            assert(object_in_cell || cell.num_objects == constants::kGridMaxObjectsInCell);
+            klgl::ErrorHandling::Ensure(
+                object_in_cell || cell.num_objects == constants::kGridMaxObjectsInCell,
+                "The object {} belongs to the cell {} but not registered there. The cell is also not full.",
+                object_index,
+                cell_index);
         }
 
         if (objects_without_cell)

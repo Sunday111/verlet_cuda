@@ -5,13 +5,11 @@ set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/camera.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/camera.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/constants.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda/cuda_helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda/gl_interop.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda/gl_interop.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_verlet.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/kernels.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/kernels.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/time.hpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/kernels.hpp)
 add_executable(cuda_gl ${module_source_files})
 set_generic_compiler_options(cuda_gl PRIVATE)
 target_link_libraries(cuda_gl PUBLIC fmt
