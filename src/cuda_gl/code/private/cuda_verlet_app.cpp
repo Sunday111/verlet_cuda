@@ -13,6 +13,16 @@
 
 namespace verlet
 {
+[[nodiscard]] constexpr ImVec2 ToImVec(Vec2f v) noexcept
+{
+    return ImVec2(v.x(), v.y());
+}
+
+[[nodiscard]] constexpr Vec2f FromImVec(ImVec2 v) noexcept
+{
+    return {v.x, v.y};
+}
+
 template <typename T>
 [[nodiscard]] constexpr std::span<T> ReinterpretSpan(std::span<uint8_t> span)
 {
@@ -129,6 +139,17 @@ void VerletCudaApp::Initialize()
 
     grid_cells_ = MakeCudaArray<GridCell>(constants::kGridNumCells);
     CheckResult(cudaMemset(grid_cells_.get(), 0, constants::kGridNumCells * sizeof(GridCell)));
+
+    big_font_ = [&](float pixel_size)
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        ImFontConfig config;
+        config.SizePixels = pixel_size;
+        config.OversampleH = config.OversampleV = 1;
+        config.PixelSnapH = true;
+        ImFont* font = io.Fonts->AddFontDefault(&config);
+        return font;
+    }(45);
 }
 
 void VerletCudaApp::RegisterGLBuffers()
@@ -608,6 +629,40 @@ void VerletCudaApp::Tick()
             .color = {1, 0, 0, 1},
             .scale = Vec2f{} + constants::kObjectRadius,
         });
+    }
+
+    {
+        const Vec2f window_padding{10, 10};
+
+        ImGui::PushFont(big_font_);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ToImVec(window_padding));
+
+        auto text = fmt::format("Objects count: {}", used_objects_count_);
+        char* text_begin = text.data();
+        char* text_end = std::next(text_begin, static_cast<int>(text.size()));
+        const Vec2f text_size = FromImVec(ImGui::CalcTextSize(text_begin, text_end));
+        const Vec2f root_window_size = GetWindow().GetSize2f();
+        const Vec2f text_center{(root_window_size.x() - text_size.x()) / 2, 150};
+        const Vec2f text_window_size = text_size + 2 * window_padding;
+
+        constexpr int flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+                              ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+
+        ImGui::SetNextWindowPos(ToImVec(text_center));
+        ImGui::SetNextWindowSize(ToImVec(text_window_size));
+
+        if (ImGui::Begin("Counter", nullptr, flags))
+        {
+            // ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (text_window_size.x - text_size.x) / 2);
+
+            ImGui::TextUnformatted(text_begin, text_end);  // NOLINT
+            ImGui::End();
+        }
+
+        ImGui::PopStyleVar(2);
+        ImGui::PopFont();
     }
 
     SpawnPendingObjects();

@@ -9,6 +9,7 @@
 #include <klgl/mesh/procedural_mesh_generator.hpp>
 
 #include "camera.hpp"
+#include "imgui.h"
 #include "kernels.hpp"
 #include "klgl/application.hpp"
 #include "klgl/events/event_listener_interface.hpp"
@@ -110,5 +111,7 @@ private:
 
     size_t reserved_objects_count_ = 0;
     size_t used_objects_count_ = 0;
+
+    ImFont* big_font_ = nullptr;
 };
 }  // namespace verlet
