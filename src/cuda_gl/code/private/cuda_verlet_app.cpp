@@ -448,7 +448,7 @@ void VerletCudaApp::CreateCircleMaskTexture()
 
 void VerletCudaApp::UpdateCamera()
 {
-    camera_.Update(constants::kWorldRange);
+    camera_.Update(constants::kWorldRange, GetWindow().GetSize2f());
 
     if (!ImGui::GetIO().WantCaptureKeyboard)
     {

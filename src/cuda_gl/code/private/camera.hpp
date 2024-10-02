@@ -48,7 +48,7 @@ public:
     void Zoom(const float delta);
     void Pan(const edt::Vec2f& delta);
 
-    void Update(const edt::FloatRange2Df& world_range);
+    void Update(const edt::FloatRange2Df& world_range, const edt::Vec2f& viewport_size);
 
     float zoom_speed = 0.2f;
     float zoom_animation_diration_seconds = 0.3f;
@@ -57,7 +57,7 @@ public:
     bool animate = true;
 
 private:
-    edt::FloatRange2Df ComputeRange(const edt::FloatRange2Df& world_range) const;
+    edt::FloatRange2Df ComputeRange(const edt::FloatRange2Df& world_range, const edt::Vec2f& viewport_size) const;
 
 private:
     edt::FloatRange2Df range_ = {};
