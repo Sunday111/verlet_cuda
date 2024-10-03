@@ -17,7 +17,7 @@ inline constexpr size_t kGridMaxObjectsInCell = 4;
 // The size of each grid cell in world coordinates
 __constant__ constexpr Vec2<size_t> kGridCellSize{1, 1};
 __constant__ constexpr float kObjectRadius = 0.5f;
-static constexpr Vec2f init_corner{1280, 720};
+static constexpr Vec2f init_corner{960, 520};
 __constant__ constexpr edt::FloatRange2Df kWorldRange = edt::FloatRange2Df::FromMinMax(-init_corner, init_corner);
 __constant__ constexpr auto kGridSize = 2 + kWorldRange.Extent().Cast<size_t>() / kGridCellSize;
 __constant__ constexpr auto kGridNumCells = kGridSize.x() * kGridSize.y();

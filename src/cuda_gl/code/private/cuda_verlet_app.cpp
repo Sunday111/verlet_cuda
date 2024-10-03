@@ -118,7 +118,7 @@ void VerletCudaApp::Initialize()
     SetTargetFramerate({60.f});
 
     GL::SetClearColor({});
-    GetWindow().SetSize(2000, 1000);
+    GetWindow().SetSize(1920, 1080);
     GetWindow().SetTitle("Cuda and OpenGL");
 
     GL::EnableBlending();
