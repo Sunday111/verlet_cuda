@@ -1,5 +1,5 @@
-#include "cuda_verlet_app.hpp"
 #include "klgl/error_handling.hpp"
+#include "verlet_cuda_app.hpp"
 
 void Main()
 {

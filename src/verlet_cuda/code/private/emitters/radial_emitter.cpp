@@ -7,8 +7,8 @@
 #include "EverydayTools/Math/Math.hpp"
 #include "coloring/spawn_color/spawn_color_strategy.hpp"
 #include "constants.hpp"
-#include "cuda_verlet_app.hpp"
 #include "klgl/ui/simple_type_widget.hpp"
+#include "verlet_cuda_app.hpp"
 
 namespace verlet
 {

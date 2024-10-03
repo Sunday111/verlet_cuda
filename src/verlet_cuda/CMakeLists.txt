@@ -11,10 +11,8 @@ set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/coloring/spawn_color/spawn_color_strategy_rainbow.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/coloring/spawn_color/spawn_color_strategy_rainbow.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/constants.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_gl_interop.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_gl_interop.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_verlet_app.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_verlet_app.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_util.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/emitter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/emitter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/emitter_type.hpp
@@ -23,16 +21,18 @@ set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/kernels.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/kernels.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/object.hpp)
-add_executable(cuda_gl ${module_source_files})
-set_generic_compiler_options(cuda_gl PRIVATE)
-target_link_libraries(cuda_gl PUBLIC fmt
-                                     edt
-                                     klgl)
-target_include_directories(cuda_gl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/code/public)
-target_include_directories(cuda_gl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/code/private)
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/verlet_cuda_app.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/verlet_cuda_app.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/verlet_object.hpp)
+add_executable(verlet_cuda ${module_source_files})
+set_generic_compiler_options(verlet_cuda PRIVATE)
+target_link_libraries(verlet_cuda PUBLIC fmt
+                                         edt
+                                         klgl)
+target_include_directories(verlet_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/code/public)
+target_include_directories(verlet_cuda PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/code/private)
 include(${CMAKE_CURRENT_SOURCE_DIR}/add_cuda.cmake)
-add_custom_target(cuda_gl_copy_files ALL
+add_custom_target(verlet_cuda_copy_files ALL
     ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/content" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content
 )
-add_dependencies(cuda_gl_copy_files cuda_gl)
+add_dependencies(verlet_cuda_copy_files verlet_cuda)

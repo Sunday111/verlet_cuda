@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cuda_runtime.h>
 #include <fmt/chrono.h>
 
 #include <EverydayTools/Math/FloatRange.hpp>
@@ -9,6 +8,7 @@
 #include <klgl/mesh/procedural_mesh_generator.hpp>
 
 #include "camera.hpp"
+#include "cuda_util.hpp"
 #include "imgui.h"
 #include "kernels.hpp"
 #include "klgl/application.hpp"
@@ -16,19 +16,12 @@
 #include "klgl/events/mouse_events.hpp"
 #include "klgl/opengl/gl_api.hpp"
 #include "klgl/opengl/vertex_attribute_helper.hpp"
-#include "klgl/reflection/matrix_reflect.hpp"  // IWYU pragma: keep
 #include "klgl/shader/shader.hpp"
 #include "klgl/texture/texture.hpp"
 #include "klgl/window.hpp"
-#include "object.hpp"
 
 namespace verlet
 {
-
-using CudaDeleter = decltype([](auto* p) { cudaFree(p); });
-
-template <typename T>
-using CudaPtr = std::unique_ptr<T, CudaDeleter>;
 
 class SpawnColorStrategy;
 class Emitter;
@@ -51,7 +44,6 @@ public:
 
     void Initialize() override;
     void RegisterGLBuffers();
-    void SpawnPendingObjects();
     void CreateMesh();
     void CreateCircleMaskTexture();
     void UpdateCamera();
@@ -59,12 +51,15 @@ public:
     void UpdateRenderTransforms();
     Vec2f GetMousePositionInWorldCoordinates() const;
     void Tick() override;
-    void CheckGrid(std::span<PositionType> device_positions);
-    void AddObject(const VerletObject& object);
+    void AddObject(const VerletObject& object) { pending_objects_.push_back(object); }
 
     [[nodiscard]] size_t GetMaxObjectsCount() const { return 3'000'000; }
     [[nodiscard]] size_t GetObjectsCount() const { return used_objects_count_; }
     [[nodiscard]] SpawnColorStrategy& GetSpawnColorStrategy() const { return *spawn_color_strategy_; }
+
+private:
+    void SpawnPendingObjects();
+    std::tuple<CudaMappedGraphicsResourcePtr, std::span<VerletObject>> ReserveAndGetDevicePtr(size_t required_size);
 
 private:
     cudaStream_t cuda_stream_{};
@@ -77,18 +72,12 @@ private:
 
     size_t a_vertex_{};
     size_t a_tex_coord_{};
-
     size_t a_color_{};
-    klgl::GlObject<klgl::GlBufferId> color_vbo_;
-
     size_t a_position_{};
-    klgl::GlObject<klgl::GlBufferId> position_vbo_;
-
-    CudaPtr<PositionType> device_old_positions_;
-
     size_t a_scale_{};
-    klgl::GlObject<klgl::GlBufferId> scale_vbo_;
-    std::vector<ScaleType> scales_;
+
+    klgl::GlObject<klgl::GlBufferId> objects_vbo_;
+    CudaGraphicsResourcePtr objects_vbo_resource_;
 
     std::shared_ptr<klgl::MeshOpenGL> mesh_;
 
@@ -103,10 +92,7 @@ private:
 
     CudaPtr<GridCell> grid_cells_;
 
-    std::vector<Vec2f> pending_positions_;
-    std::vector<Vec2f> pending_old_positions_;
-    std::vector<Vec4f> pending_colors_;
-    std::vector<Vec2f> pending_scales_;
+    std::vector<VerletObject> pending_objects_;
     std::vector<std::unique_ptr<Emitter>> emitters_;
 
     size_t reserved_objects_count_ = 0;

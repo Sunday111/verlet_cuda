@@ -1,7 +1,7 @@
 #include "spawn_color_strategy_rainbow.hpp"
 
-#include "cuda_verlet_app.hpp"
 #include "imgui.h"
+#include "verlet_cuda_app.hpp"
 
 namespace verlet
 {

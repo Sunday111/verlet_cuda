@@ -1,7 +1,6 @@
 #include "kernels.hpp"
 #include <cuda_runtime.h>
 #include <cassert>
-#include <bit>
 #include "EverydayTools/Math/Math.hpp"
 
 namespace verlet::kernels_impl
@@ -44,13 +43,13 @@ static_assert(GetChunkSize2D({602, 602}, {3, 3}, {0, 0}) == Vec2<size_t>{201, 20
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {1, 1}) == Vec2<size_t>{201, 201});
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {2, 2}) == Vec2<size_t>{200, 200});
 
-__global__ void PopulateGrid(GridCell* cells, size_t num_objects, edt::Vec2f* positions)
+__global__ void PopulateGrid(GridCell* cells, size_t num_objects, VerletObject* objects)
 {
     const size_t object_index = threadIdx.x + blockIdx.x * blockDim.x;
     if (object_index >= num_objects) return;
 
-    edt::Vec2f& position = positions[object_index];
-    const auto cell_index = DeviceGrid::LocationToCellIndex(position);
+    edt::Vec2f& position = objects[object_index].position;
+    const auto cell_index = GridCell::LocationToCellIndex(position);
     auto idx = atomicAdd(&cells[cell_index].num_objects, 1);
     if (idx < 4)
     {
@@ -63,7 +62,7 @@ __global__ void PopulateGrid(GridCell* cells, size_t num_objects, edt::Vec2f* po
     }
 }
 
-__device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells, edt::Vec2f* const positions)
+__device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells, VerletObject* objects)
 {
     const size_t cell_index = cell.y() * constants::kGridSize.x() + cell.x();
     // printf("Solve collisions on cell %d %d\n", (int)cell.x(), (int)cell.y());
@@ -78,7 +77,7 @@ __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells
                 const size_t another_object_index = cells[origin_cell_index].objects[index_in_cell];
                 if (object_index != another_object_index)
                 {
-                    auto& another_object_position = positions[another_object_index];
+                    auto& another_object_position = objects[another_object_index].position;
                     const Vec2f axis = object_position - another_object_position;
                     const float dist_sq = axis.SquaredLength();
                     if (dist_sq < 1.0f && dist_sq > eps)
@@ -99,7 +98,7 @@ __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells
     for (size_t index_in_cell = 0; index_in_cell != objects_in_cell; ++index_in_cell)
     {
         size_t object_index = cells[cell_index].objects[index_in_cell];
-        auto& object_position = positions[object_index];
+        auto& object_position = objects[object_index].position;
         solve_collision_between_object_and_cell(object_index, object_position, cell_index);
         solve_collision_between_object_and_cell(object_index, object_position, cell_index + 1);
         solve_collision_between_object_and_cell(object_index, object_position, cell_index - 1);
@@ -112,35 +111,17 @@ __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells
     }
 }
 
-__global__ void SolveCollisions_OneRow(size_t cell_y, size_t offset_x, const GridCell* cells, edt::Vec2f* const positions)
+__global__ void SolveCollisions_ManyRows(edt::Vec2<size_t> offset, const GridCell* cells, VerletObject* objects)
 {
     const size_t job_index = threadIdx.x + blockIdx.x * blockDim.x;
-    const auto cell = edt::Vec2<size_t>{ offset_x + job_index * 3 + 1, cell_y};
-    if (cell.x() >= constants::kGridSize.x() || cell.y() >= constants::kGridSize.y()) return;
-
-    SolveCollisionsFromCell(cell, cells, positions);
-}
-
-
-
-__global__ void SolveCollisions_ManyRows(edt::Vec2<size_t> offset, const GridCell* cells, edt::Vec2f* const positions)
-{
-    const size_t job_index = threadIdx.x + blockIdx.x * blockDim.x;
-
     const auto sparse_grid_size = kernels_impl::GetChunkSize2D(constants::kGridSize - 2, {3, 3}, offset);
-
     const Vec2<size_t> sparse_grid_cell {Vec2<size_t>{ job_index % sparse_grid_size.x(), job_index / sparse_grid_size.x() }};
-
-    if (sparse_grid_cell.x() >= sparse_grid_size.x() || sparse_grid_cell.y() >= sparse_grid_size.y()) return;
-
-    // printf("job %d -> sparse cell: %d %d\n", (int)job_index, (int)sparse_grid_cell.x(), (int)sparse_grid_cell.y());
-
     const auto cell = sparse_grid_cell * 3 + offset + 1;
-
-    SolveCollisionsFromCell(cell, cells, positions);
+    if (sparse_grid_cell.x() >= sparse_grid_size.x() || sparse_grid_cell.y() >= sparse_grid_size.y()) return;
+    SolveCollisionsFromCell(cell, cells, objects);
 }
 
-__global__ void UpdatePositions(size_t num_objects, edt::Vec2f* positions, edt::Vec2f* old_positions)
+__global__ void UpdatePositions(size_t num_objects, VerletObject* objects)
 {
     constexpr float margin = 2.0f;
     constexpr auto constraint_with_margin = constants::kWorldRange.Enlarged(-margin);
@@ -149,8 +130,8 @@ __global__ void UpdatePositions(size_t num_objects, edt::Vec2f* positions, edt::
     const size_t object_index = threadIdx.x + blockIdx.x * blockDim.x;
     if (object_index >= num_objects) return;
 
-    auto& position = positions[object_index];
-    auto& old_position = old_positions[object_index];
+    auto& position = objects[object_index].position;
+    auto& old_position = objects[object_index].old_position;
 
     const auto last_update_move = position - old_position;
 
@@ -168,44 +149,31 @@ __global__ void UpdatePositions(size_t num_objects, edt::Vec2f* positions, edt::
 namespace verlet
 {
 
-void Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, size_t num_objects, edt::Vec2f* positions)
+void Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, size_t num_objects, VerletObject* objects)
 {
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
-    kernels_impl::PopulateGrid<<<num_blocks, threads_per_block, 0, stream>>> (cells, num_objects, positions);
+    kernels_impl::PopulateGrid<<<num_blocks, threads_per_block, 0, stream>>> (cells, num_objects, objects);
     const cudaError_t err = cudaGetLastError();
     assert(err == cudaSuccess);
 }
 
-void Kernels::SolveCollisions_OneRow(cudaStream_t& stream, GridCell* cells, edt::Vec2f* positions, size_t cell_y, size_t offset_x)
-{
-    const auto num_jobs = kernels_impl::GetChunkSize(constants::kGridSize.x() - 2, 3, offset_x);
-
-    const uint32_t threads_per_block = 128;
-    const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
-    kernels_impl::SolveCollisions_OneRow<<<num_blocks, threads_per_block, 0, stream>>>(cell_y, offset_x, cells, positions);
-    const cudaError_t err = cudaGetLastError();
-    assert(err == cudaSuccess);
-}
-
-void Kernels::SolveCollisions_ManyRows(cudaStream_t& stream, GridCell* cells, edt::Vec2f* positions, edt::Vec2<size_t> offset)
+void Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset)
 {
     const auto sparse_grid_size = kernels_impl::GetChunkSize2D(constants::kGridSize - 2, { 3, 3 }, offset);
     const size_t num_jobs = sparse_grid_size.x() * sparse_grid_size.y();
-    // printf("sparse grid: %d, %d. num jobs: %d\n", (int)sparse_grid_size.x(), (int)sparse_grid_size.y(),  (int)num_jobs);
-
     const uint32_t threads_per_block = 1024;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
-    kernels_impl::SolveCollisions_ManyRows<<<num_blocks, threads_per_block, 0, stream>>>(offset, cells, positions);
+    kernels_impl::SolveCollisions_ManyRows<<<num_blocks, threads_per_block, 0, stream>>>(offset, cells, objects);
     const cudaError_t err = cudaGetLastError();
     assert(err == cudaSuccess);
 }
 
-void Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, edt::Vec2f* positions, edt::Vec2f* old_positions)
+void Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects)
 {
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
-    kernels_impl::UpdatePositions<<<num_blocks, threads_per_block, 0, stream>>>(num_objects, positions, old_positions);
+    kernels_impl::UpdatePositions<<<num_blocks, threads_per_block, 0, stream>>>(num_objects, objects);
     const cudaError_t err = cudaGetLastError();
     assert(err == cudaSuccess);
 }
