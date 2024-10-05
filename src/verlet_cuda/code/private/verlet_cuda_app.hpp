@@ -51,9 +51,15 @@ public:
     void UpdateRenderTransforms();
     Vec2f GetMousePositionInWorldCoordinates() const;
     void Tick() override;
-    void AddObject(const VerletObject& object) { pending_objects_.push_back(object); }
+    void AddObject(const VerletObject& object)
+    {
+        if ((used_objects_count_ + pending_objects_.size()) < GetMaxObjectsCount())
+        {
+            pending_objects_.push_back(object);
+        }
+    }
 
-    [[nodiscard]] size_t GetMaxObjectsCount() const { return 3'000'000; }
+    [[nodiscard]] size_t GetMaxObjectsCount() const { return 1'500'000; }
     [[nodiscard]] size_t GetObjectsCount() const { return used_objects_count_; }
     [[nodiscard]] SpawnColorStrategy& GetSpawnColorStrategy() const { return *spawn_color_strategy_; }
 

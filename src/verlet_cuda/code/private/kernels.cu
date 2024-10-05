@@ -43,23 +43,14 @@ static_assert(GetChunkSize2D({602, 602}, {3, 3}, {0, 0}) == Vec2<size_t>{201, 20
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {1, 1}) == Vec2<size_t>{201, 201});
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {2, 2}) == Vec2<size_t>{200, 200});
 
-__global__ void PopulateGrid(GridCell* cells, size_t num_objects, VerletObject* objects)
+__global__ void PopulateGrid(GridCell* cells, std::span<VerletObject> objects)
 {
     const size_t object_index = threadIdx.x + blockIdx.x * blockDim.x;
-    if (object_index >= num_objects) return;
+    if (object_index >= objects.size()) return;
 
-    edt::Vec2f& position = objects[object_index].position;
-    const auto cell_index = GridCell::LocationToCellIndex(position);
-    auto idx = atomicAdd(&cells[cell_index].num_objects, 1);
-    if (idx < 4)
-    {
-        cells[cell_index].objects[idx] = object_index;
-    }
-    else
-    {
-        cells[cell_index].num_objects = 4;
-        position *= 0.9999f;
-    }
+    VerletObject& object = objects[object_index];
+    const auto cell_index = GridCell::LocationToCellIndex(object.position);
+    object.next_object_in_cell = atomicExch(&cells[cell_index].first_object_index, object_index);
 }
 
 __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells, VerletObject* objects)
@@ -71,13 +62,15 @@ __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells
     auto solve_collision_between_object_and_cell =
         [&](const size_t object_index, edt::Vec2f& object_position, const size_t origin_cell_index)
         {
-            const size_t objects_in_cell = cells[origin_cell_index].num_objects % 4;
-            for (size_t index_in_cell = 0; index_in_cell != objects_in_cell; ++index_in_cell)
+            
+            uint32_t another_object_index = cells[origin_cell_index].first_object_index; // NOLINT
+            while (another_object_index != kInvalidObjectIndex)
             {
-                const size_t another_object_index = cells[origin_cell_index].objects[index_in_cell];
+                VerletObject& another_object = objects[another_object_index]; // NOLINT
                 if (object_index != another_object_index)
                 {
-                    auto& another_object_position = objects[another_object_index].position;
+
+                    auto& another_object_position = another_object.position;
                     const Vec2f axis = object_position - another_object_position;
                     const float dist_sq = axis.SquaredLength();
                     if (dist_sq < 1.0f && dist_sq > eps)
@@ -89,16 +82,20 @@ __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells
                         object_position += ac * col_vec;
                         another_object_position -= bc * col_vec;
                     }
+
                 }
+                another_object_index = another_object.next_object_in_cell;
             }
         };
 
     const size_t grid_width = constants::kGridSize.x();
-    const size_t objects_in_cell = cells[cell_index].num_objects % 4;
-    for (size_t index_in_cell = 0; index_in_cell != objects_in_cell; ++index_in_cell)
+
+    uint32_t object_index = cells[cell_index].first_object_index; // NOLINT
+    while (object_index != kInvalidObjectIndex)
     {
-        size_t object_index = cells[cell_index].objects[index_in_cell];
-        auto& object_position = objects[object_index].position;
+        VerletObject& object = objects[object_index]; // NOLINT
+
+        auto& object_position = object.position;
         solve_collision_between_object_and_cell(object_index, object_position, cell_index);
         solve_collision_between_object_and_cell(object_index, object_position, cell_index + 1);
         solve_collision_between_object_and_cell(object_index, object_position, cell_index - 1);
@@ -108,6 +105,8 @@ __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells
         solve_collision_between_object_and_cell(object_index, object_position, cell_index - grid_width);
         solve_collision_between_object_and_cell(object_index, object_position, cell_index - grid_width + 1);
         solve_collision_between_object_and_cell(object_index, object_position, cell_index - grid_width - 1);
+
+        object_index = object.next_object_in_cell;
     }
 }
 
@@ -149,11 +148,11 @@ __global__ void UpdatePositions(size_t num_objects, VerletObject* objects)
 namespace verlet
 {
 
-void Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, size_t num_objects, VerletObject* objects)
+void Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, std::span<VerletObject> objects)
 {
     const uint32_t threads_per_block = 256;
-    const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
-    kernels_impl::PopulateGrid<<<num_blocks, threads_per_block, 0, stream>>> (cells, num_objects, objects);
+    const uint32_t num_blocks = (static_cast<uint32_t>(objects.size()) + threads_per_block - 1) / threads_per_block;
+    kernels_impl::PopulateGrid<<<num_blocks, threads_per_block, 0, stream>>> (cells, objects);
     const cudaError_t err = cudaGetLastError();
     assert(err == cudaSuccess);
 }

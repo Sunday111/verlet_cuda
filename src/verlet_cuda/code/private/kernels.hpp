@@ -27,8 +27,7 @@ public:
         return CellToCellIndex(LocationToCell(location));
     }
 
-    std::array<uint32_t, constants::kGridMaxObjectsInCell> objects;
-    uint32_t num_objects;
+    uint32_t first_object_index = kInvalidObjectIndex;
 };
 
 // C++ interface to invoke cuda kernels
@@ -36,7 +35,7 @@ class Kernels
 {
 public:
     static void ClearGrid(cudaStream_t& stream, GridCell* cells);
-    static void PopulateGrid(cudaStream_t& stream, GridCell* cells, size_t num_objects, VerletObject* objects);
+    static void PopulateGrid(cudaStream_t& stream, GridCell* cells, std::span<VerletObject> objects);
     static void SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset);
     static void UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects);
 };

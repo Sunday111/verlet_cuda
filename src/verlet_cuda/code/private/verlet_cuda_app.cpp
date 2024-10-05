@@ -302,8 +302,8 @@ void VerletCudaApp::Tick()
             for (size_t substep = 0; substep != constants::kNumSubSteps; ++substep)
             {
                 CheckResult(
-                    cudaMemsetAsync(grid_cells_.get(), 0, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_));
-                Kernels::PopulateGrid(cuda_stream_, grid_cells_.get(), used_objects_count_, device_objects.data());
+                    cudaMemsetAsync(grid_cells_.get(), 255, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_));
+                Kernels::PopulateGrid(cuda_stream_, grid_cells_.get(), device_objects);
 
                 // CheckGrid(device_positions);
 
