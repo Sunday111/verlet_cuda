@@ -53,58 +53,59 @@ __global__ void PopulateGrid(GridCell* cells, std::span<VerletObject> objects)
     object.next_object_in_cell = atomicExch(&cells[cell_index].first_object_index, object_index);
 }
 
+template<bool check_for_self_collision = false>
+__device__ void SolveCollisionBetweenObjectAndCell(const GridCell* cells, VerletObject* objects, VerletObject& object, const size_t origin_cell_index)
+{
+    constexpr float eps = 0.0001f;
+    uint32_t another_object_index = cells[origin_cell_index].first_object_index; // NOLINT
+    while (another_object_index != kInvalidObjectIndex)
+    {
+        VerletObject& another_object = objects[another_object_index]; // NOLINT
+        another_object_index = another_object.next_object_in_cell;
+
+        // Don't need this branch in all nine cases
+        // only when colliding object with objects in the same cell
+        if constexpr (check_for_self_collision) 
+        {
+            // self-collision
+            if (&object == &another_object)
+            {
+                continue;
+            }
+        }
+
+        auto& another_object_position = another_object.position;
+        const Vec2f axis = object.position - another_object_position;
+        const float dist_sq = axis.SquaredLength();
+        if (dist_sq < 1.0f && dist_sq > eps)
+        {
+            const float dist = sqrt(dist_sq);
+            const float delta = 0.5f - dist / 2;
+            const Vec2f col_vec = axis * (delta / dist);
+            const auto ac = 0.5f, bc = 0.5f; // mass coefficients
+            object.position += ac * col_vec;
+            another_object_position -= bc * col_vec;
+        }
+    }
+}
+
 __device__ void SolveCollisionsFromCell(Vec2<size_t> cell, const GridCell* cells, VerletObject* objects)
 {
-    const size_t cell_index = cell.y() * constants::kGridSize.x() + cell.x();
-    // printf("Solve collisions on cell %d %d\n", (int)cell.x(), (int)cell.y());
-
-    constexpr float eps = 0.0001f;
-    auto solve_collision_between_object_and_cell =
-        [&](const size_t object_index, edt::Vec2f& object_position, const size_t origin_cell_index)
-        {
-            
-            uint32_t another_object_index = cells[origin_cell_index].first_object_index; // NOLINT
-            while (another_object_index != kInvalidObjectIndex)
-            {
-                VerletObject& another_object = objects[another_object_index]; // NOLINT
-                if (object_index != another_object_index)
-                {
-
-                    auto& another_object_position = another_object.position;
-                    const Vec2f axis = object_position - another_object_position;
-                    const float dist_sq = axis.SquaredLength();
-                    if (dist_sq < 1.0f && dist_sq > eps)
-                    {
-                        const float dist = sqrt(dist_sq);
-                        const float delta = 0.5f - dist / 2;
-                        const Vec2f col_vec = axis * (delta / dist);
-                        const auto ac = 0.5f, bc = 0.5f; // mass coefficients
-                        object_position += ac * col_vec;
-                        another_object_position -= bc * col_vec;
-                    }
-
-                }
-                another_object_index = another_object.next_object_in_cell;
-            }
-        };
-
     const size_t grid_width = constants::kGridSize.x();
-
+    const size_t cell_index = cell.y() * constants::kGridSize.x() + cell.x();
     uint32_t object_index = cells[cell_index].first_object_index; // NOLINT
     while (object_index != kInvalidObjectIndex)
     {
         VerletObject& object = objects[object_index]; // NOLINT
-
-        auto& object_position = object.position;
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index + 1);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index - 1);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index + grid_width);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index + grid_width + 1);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index + grid_width - 1);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index - grid_width);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index - grid_width + 1);
-        solve_collision_between_object_and_cell(object_index, object_position, cell_index - grid_width - 1);
+        SolveCollisionBetweenObjectAndCell<true>(cells, objects, object, cell_index);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + grid_width);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + grid_width + 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + grid_width - 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - grid_width);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - grid_width + 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - grid_width - 1);
 
         object_index = object.next_object_in_cell;
     }
