@@ -4,7 +4,7 @@ namespace verlet
 {
 edt::FloatRange2Df Camera::ComputeRange(const edt::FloatRange2Df& world_range, const edt::Vec2f& viewport_size) const
 {
-    auto camera_extent = edt::Vec2f{} + world_range.Extent().Max();
+    auto camera_extent = edt::Vec2f{} + world_range.Extent().Min();
     if (viewport_size.x() > viewport_size.y())
     {
         camera_extent.x() *= viewport_size.x() / viewport_size.y();
