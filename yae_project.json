@@ -1,5 +1,5 @@
 {
-    "name": "Cuda",
+    "name": "verlet_cuda",
     "modules_dir": "src",
     "cloned_dependencies_dir": "cloned_dependencies",
     "enable_lto_globally": true,

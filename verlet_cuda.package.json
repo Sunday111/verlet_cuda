@@ -1,0 +1,13 @@
+{
+    "modules_dir": "src",
+    "dependencies": {
+        "packages": [
+            {
+                "link": "https://github.com/Sunday111/klgl main",
+                "packages": [
+                    "klgl"
+                ]
+            }
+        ]
+    }
+}
