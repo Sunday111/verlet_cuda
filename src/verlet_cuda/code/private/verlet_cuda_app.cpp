@@ -88,6 +88,12 @@ void VerletCudaApp::Initialize()
         ImFont* font = io.Fonts->AddFontDefault(&config);
         return font;
     }(45);
+
+    do  // NOLINT
+    {
+        zoom_power_ -= 0.1f;
+        camera_.zoom = std::max(std::powf(1.1f, zoom_power_), std::numeric_limits<float>::lowest());
+    } while (camera_.zoom > 1.f / constants::kWorldRange.Extent().Max());
 }
 
 void VerletCudaApp::RegisterGLBuffers()
@@ -228,8 +234,6 @@ void VerletCudaApp::CreateCircleMaskTexture()
 
 void VerletCudaApp::UpdateCamera()
 {
-    camera_.Update(constants::kWorldRange, GetWindow().GetSize2f());
-
     if (!ImGui::GetIO().WantCaptureKeyboard)
     {
         Vec2f offset{};
@@ -238,42 +242,27 @@ void VerletCudaApp::UpdateCamera()
         if (ImGui::IsKeyDown(ImGuiKey_D)) offset.x() += 1.f;
         if (ImGui::IsKeyDown(ImGuiKey_A)) offset.x() -= 1.f;
 
-        camera_.Pan((GetLastFrameDurationSeconds() * camera_.GetRange().Extent() * offset) * camera_.pan_speed);
+        camera_.eye += GetLastFrameDurationSeconds() * offset / camera_.zoom;
     }
+
+    viewport_.MatchWindowSize(GetWindow().GetSize2f());
+    render_transforms_.Update(camera_, viewport_, klgl::AspectRatioPolicy::ShrinkToFit);
 }
 
 void VerletCudaApp::OnMouseScroll(const klgl::events::OnMouseScroll& event)
 {
     if (!ImGui::GetIO().WantCaptureMouse)
     {
-        camera_.Zoom(event.value.y() * camera_.zoom_speed);
+        zoom_power_ += event.value.y();
+        camera_.zoom = std::max(std::powf(1.1f, zoom_power_), std::numeric_limits<float>::lowest());
     }
-}
-
-void VerletCudaApp::UpdateRenderTransforms()
-{
-    const auto screen_range = edt::FloatRange2Df::FromMinMax({}, GetWindow().GetSize2f());
-    const auto view_range = edt::FloatRange2Df::FromMinMax(Vec2f{} - 1, Vec2f{} + 1);
-    const auto camera_to_world_vector = constants::kWorldRange.Uniform(.5f) - camera_.GetEye();
-    const auto camera_extent = camera_.GetRange().Extent();
-
-    world_to_camera_ = edt::Math::TranslationMatrix(camera_to_world_vector);
-    auto camera_to_view_ = edt::Math::ScaleMatrix(view_range.Extent() / camera_extent);
-    world_to_view_ = camera_to_view_.MatMul(world_to_camera_);
-
-    const auto screen_to_view =
-        edt::Math::TranslationMatrix(Vec2f{} - 1).MatMul(edt::Math::ScaleMatrix(2 / screen_range.Extent()));
-    const auto view_to_camera = edt::Math::ScaleMatrix(camera_extent / view_range.Extent());
-    const auto camera_to_world = edt::Math::TranslationMatrix(-camera_to_world_vector);
-    screen_to_world_ = camera_to_world.MatMul(view_to_camera).MatMul(screen_to_view);
 }
 
 Vec2f VerletCudaApp::GetMousePositionInWorldCoordinates() const
 {
-    const auto screen_range = edt::FloatRange2Df::FromMinMax({}, GetWindow().GetSize2f());  // 0 -> resolution
-    auto [x, y] = ImGui::GetMousePos();
-    y = screen_range.y.Extent() - y;
-    return edt::Math::TransformPos(screen_to_world_, Vec2f{x, y});
+    auto p = FromImVec(ImGui::GetMousePos());
+    p.y() = GetWindow().GetSize2f().y() - p.y();
+    return edt::Math::TransformPos(render_transforms_.screen_to_world, p);
 }
 
 void VerletCudaApp::Tick()
@@ -281,7 +270,6 @@ void VerletCudaApp::Tick()
     klgl::Application::Tick();
 
     UpdateCamera();
-    UpdateRenderTransforms();
 
     // Do simulation substeps
     auto sim_time = MeasureTime(
@@ -383,7 +371,7 @@ void VerletCudaApp::Tick()
         }
     }
 
-    shader_->SetUniform(u_world_to_view_, world_to_view_.Transposed());
+    shader_->SetUniform(u_world_to_view_, render_transforms_.world_to_view.Transposed());
     shader_->SendUniforms();
 
     mesh_->DrawInstanced(used_objects_count_);

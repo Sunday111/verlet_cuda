@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.20)
 enable_language(CUDA)
 include(set_compiler_options)
 set(module_source_files
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/camera.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/camera.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/coloring/object_color_function.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/coloring/spawn_color/spawn_color_strategy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/coloring/spawn_color/spawn_color_strategy_array.cpp

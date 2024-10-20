@@ -7,11 +7,11 @@
 #include <klgl/mesh/mesh_data.hpp>
 #include <klgl/mesh/procedural_mesh_generator.hpp>
 
-#include "camera.hpp"
 #include "cuda_util.hpp"
 #include "imgui.h"
 #include "kernels.hpp"
 #include "klgl/application.hpp"
+#include "klgl/camera/camera_2d.hpp"
 #include "klgl/events/event_listener_interface.hpp"
 #include "klgl/events/mouse_events.hpp"
 #include "klgl/opengl/gl_api.hpp"
@@ -48,7 +48,6 @@ public:
     void CreateCircleMaskTexture();
     void UpdateCamera();
     void OnMouseScroll(const klgl::events::OnMouseScroll& event);
-    void UpdateRenderTransforms();
     Vec2f GetMousePositionInWorldCoordinates() const;
     void Tick() override;
     void AddObject(const VerletObject& object)
@@ -73,7 +72,10 @@ private:
     std::unique_ptr<klgl::events::IEventListener> event_listener_;
     std::unique_ptr<SpawnColorStrategy> spawn_color_strategy_;
 
-    Camera camera_{};
+    float zoom_power_ = 0.f;
+    klgl::Camera2d camera_{};
+    klgl::Viewport viewport_{};
+    klgl::RenderTransforms2d render_transforms_{};
     std::shared_ptr<klgl::Shader> shader_;
 
     size_t a_vertex_{};
@@ -91,10 +93,6 @@ private:
     std::unique_ptr<klgl::Texture> texture_;
 
     klgl::UniformHandle u_world_to_view_{"u_world_to_view"};
-    Mat3f world_to_view_ = Mat3f::Identity();
-
-    Mat3f world_to_camera_ = Mat3f::Identity();
-    Mat3f screen_to_world_ = Mat3f::Identity();
 
     CudaPtr<GridCell> grid_cells_;
 
