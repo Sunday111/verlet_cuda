@@ -36,9 +36,17 @@ include(yae_lto)
 enable_lto_globally()
 
 
+# https://github.com/google/googletest v1.15.2
+set(YAE_gtest_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/google/googletest/1_15_2)
+option(INSTALL_GTEST "" OFF)
+option(BUILD_GMOCK "" OFF)
+add_subdirectory(${YAE_gtest_SOURCES} yae_modules/google/googletest/1_15_2 SYSTEM)
+
 # https://github.com/Sunday111/EverydayTools master
 set(YAE_edt_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/Sunday111/EverydayTools)
 option(EDT_WITH_TESTS "" ON)
+option(EDT_FETCH_GOOGLE_TESTS "" OFF)
+option(EDT_FIND_GTEST_PACKAGE "" OFF)
 add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/EverydayTools SYSTEM)
 
 # https://github.com/Sunday111/CppReflection for_yae
@@ -63,12 +71,6 @@ add_subdirectory(${YAE_gbench_main_SOURCES} yae_modules/google/benchmark/1_8_3 S
 
 set(YAE_ecs_benchmark_SOURCES yae/modules/examples/ecs_benchmark)
 add_subdirectory(${YAE_ecs_benchmark_SOURCES} yae_modules/yae/modules/examples/ecs_benchmark SYSTEM)
-
-# https://github.com/google/googletest v1.15.2
-set(YAE_gtest_main_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/google/googletest/1_15_2)
-option(INSTALL_GTEST "" OFF)
-option(BUILD_GMOCK "" OFF)
-add_subdirectory(${YAE_gtest_main_SOURCES} yae_modules/google/googletest/1_15_2 SYSTEM)
 
 set(YAE_ecs_tests_SOURCES yae/modules/examples/ecs_tests)
 add_subdirectory(${YAE_ecs_tests_SOURCES} yae_modules/yae/modules/examples/ecs_tests SYSTEM)
@@ -162,6 +164,9 @@ add_subdirectory(${YAE_klgl_simple_lit_cube_example_SOURCES} yae_modules/cloned_
 
 set(YAE_klgl_tests_SOURCES cloned_repositories/Sunday111/klgl/tests)
 add_subdirectory(${YAE_klgl_tests_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/tests SYSTEM)
+
+set(YAE_klgl_tetris_example_SOURCES cloned_repositories/Sunday111/klgl/examples/tetris)
+add_subdirectory(${YAE_klgl_tetris_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/tetris SYSTEM)
 
 set(YAE_klgl_textured_quad_example_SOURCES cloned_repositories/Sunday111/klgl/examples/textured_quad)
 add_subdirectory(${YAE_klgl_textured_quad_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/textured_quad SYSTEM)

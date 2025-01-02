@@ -15,7 +15,7 @@ cudaGraphicsResource* CudaGlInterop::RegisterResource(klgl::GlBufferId buffer)
 
 void CudaGlInterop::UnregisterResource(cudaGraphicsResource* resource)
 {
-    auto err = cudaGraphicsUnregisterResource(resource);
+    [[maybe_unused]] auto err = cudaGraphicsUnregisterResource(resource);
     assert(err == cudaSuccess);
 }
 
@@ -39,7 +39,7 @@ std::span<uint8_t> CudaGlInterop::GetDeviceDataPtr(const CudaMappedGraphicsResou
 
 void CudaGlInterop::UnmapResource(cudaGraphicsResource* resource)
 {
-    auto err = cudaGraphicsUnmapResources(1, &resource, 0);
+    [[maybe_unused]] auto err = cudaGraphicsUnmapResources(1, &resource, 0);
     assert(err == cudaSuccess);
 }
 }  // namespace verlet
