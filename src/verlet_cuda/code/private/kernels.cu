@@ -154,7 +154,7 @@ void Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, std::span<Verl
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(objects.size()) + threads_per_block - 1) / threads_per_block;
     kernels_impl::PopulateGrid<<<num_blocks, threads_per_block, 0, stream>>> (cells, objects);
-    const cudaError_t err = cudaGetLastError();
+    [[maybe_unused]] const cudaError_t err = cudaGetLastError();
     assert(err == cudaSuccess);
 }
 
@@ -165,7 +165,7 @@ void Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObjec
     const uint32_t threads_per_block = 1024;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
     kernels_impl::SolveCollisions_ManyRows<<<num_blocks, threads_per_block, 0, stream>>>(offset, cells, objects);
-    const cudaError_t err = cudaGetLastError();
+    [[maybe_unused]] const cudaError_t err = cudaGetLastError();
     assert(err == cudaSuccess);
 }
 
@@ -174,7 +174,7 @@ void Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletOb
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
     kernels_impl::UpdatePositions<<<num_blocks, threads_per_block, 0, stream>>>(num_objects, objects);
-    const cudaError_t err = cudaGetLastError();
+    [[maybe_unused]] const cudaError_t err = cudaGetLastError();
     assert(err == cudaSuccess);
 }
 }
