@@ -141,6 +141,9 @@ add_subdirectory(${YAE_klgl_SOURCES} yae_modules/cloned_repositories/Sunday111/k
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
 
+set(YAE_klgl_compute_shader_example_SOURCES cloned_repositories/Sunday111/klgl/examples/compute_shader)
+add_subdirectory(${YAE_klgl_compute_shader_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/compute_shader SYSTEM)
+
 set(YAE_klgl_geometry_shader_SOURCES cloned_repositories/Sunday111/klgl/examples/geometry_shader)
 add_subdirectory(${YAE_klgl_geometry_shader_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/geometry_shader SYSTEM)
 

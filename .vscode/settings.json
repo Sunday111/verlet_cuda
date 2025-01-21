@@ -3,6 +3,9 @@
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "xaver.clang-format",
 
+    "clang-format.executable": "C:/data/soft/portable/llvm/19.1.0/bin/clang-format.exe",
+    "clangd.path": "C:/data/soft/portable/llvm/19.1.0/bin/clangd.exe",
+
     // Python
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
