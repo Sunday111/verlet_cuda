@@ -57,9 +57,9 @@ add_subdirectory(${YAE_CppReflection_SOURCES} yae_modules/Sunday111/CppReflectio
 set(YAE_unordered_dense_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/martinus/unordered_dense)
 add_subdirectory(${YAE_unordered_dense_SOURCES} yae_modules/martinus/unordered_dense SYSTEM)
 
-# https://github.com/fmtlib/fmt 10.1.1
-set(YAE_fmtlib_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/fmt/10_1_1)
-add_subdirectory(${YAE_fmtlib_SOURCES} yae_modules/fmt/10_1_1 SYSTEM)
+# https://github.com/fmtlib/fmt 11.1.1
+set(YAE_fmtlib_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/fmt/11_1_1)
+add_subdirectory(${YAE_fmtlib_SOURCES} yae_modules/fmt/11_1_1 SYSTEM)
 
 set(YAE_ecs_SOURCES yae/modules/examples/ecs)
 add_subdirectory(${YAE_ecs_SOURCES} yae_modules/yae/modules/examples/ecs SYSTEM)
@@ -126,7 +126,7 @@ add_subdirectory(${YAE_imgui_glfw_cmake_SOURCES} yae_modules/cloned_repositories
 set(YAE_cpptrace_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/jeremy-rifkin/cpptrace)
 add_subdirectory(${YAE_cpptrace_SOURCES} yae_modules/jeremy-rifkin/cpptrace SYSTEM)
 
-# https://github.com/Neargye/magic_enum v0.9.6
+# https://github.com/Neargye/magic_enum v0.9.7
 set(YAE_magic_enum_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/Neargye/magic_enum)
 add_subdirectory(${YAE_magic_enum_SOURCES} yae_modules/Neargye/magic_enum SYSTEM)
 
@@ -158,6 +158,12 @@ add_subdirectory(${YAE_klgl_minimal_quad_example_SOURCES} yae_modules/cloned_rep
 
 set(YAE_klgl_painter2d_example_SOURCES cloned_repositories/Sunday111/klgl/examples/painter2d)
 add_subdirectory(${YAE_klgl_painter2d_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/painter2d SYSTEM)
+
+set(YAE_klgl_post_processing_example_SOURCES cloned_repositories/Sunday111/klgl/examples/post_processing)
+add_subdirectory(${YAE_klgl_post_processing_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/post_processing SYSTEM)
+
+set(YAE_klgl_render_to_texture_example_SOURCES cloned_repositories/Sunday111/klgl/examples/render_to_texture)
+add_subdirectory(${YAE_klgl_render_to_texture_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/render_to_texture SYSTEM)
 
 set(YAE_klgl_rotator_benchmark_SOURCES cloned_repositories/Sunday111/klgl/benchmarks/rotators)
 add_subdirectory(${YAE_klgl_rotator_benchmark_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/benchmarks/rotators SYSTEM)

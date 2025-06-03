@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cpptrace/cpptrace.hpp>
+#include <iterator>
 #include <memory>
 #include <span>
 
