@@ -144,6 +144,15 @@ add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
 set(YAE_klgl_compute_shader_example_SOURCES cloned_repositories/Sunday111/klgl/examples/compute_shader)
 add_subdirectory(${YAE_klgl_compute_shader_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/compute_shader SYSTEM)
 
+set(YAE_klgl_curve_example_SOURCES cloned_repositories/Sunday111/klgl/examples/curve)
+add_subdirectory(${YAE_klgl_curve_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/curve SYSTEM)
+
+set(YAE_klgl_curve_fractal_example_SOURCES cloned_repositories/Sunday111/klgl/examples/curve_fractal)
+add_subdirectory(${YAE_klgl_curve_fractal_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/curve_fractal SYSTEM)
+
+set(YAE_klgl_fractal_example_SOURCES cloned_repositories/Sunday111/klgl/examples/fractal)
+add_subdirectory(${YAE_klgl_fractal_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/fractal SYSTEM)
+
 set(YAE_klgl_geometry_shader_SOURCES cloned_repositories/Sunday111/klgl/examples/geometry_shader)
 add_subdirectory(${YAE_klgl_geometry_shader_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/geometry_shader SYSTEM)
 

@@ -245,7 +245,7 @@ void VerletCudaApp::UpdateCamera()
         camera_.eye += GetLastFrameDurationSeconds() * offset / camera_.zoom;
     }
 
-    viewport_.MatchWindowSize(GetWindow().GetSize2f());
+    viewport_.MatchWindowSize(GetWindow().GetSize());
     render_transforms_.Update(camera_, viewport_, klgl::AspectRatioPolicy::ShrinkToFit);
 }
 
