@@ -27,7 +27,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 # Set path to external modules sources
 set(YAE_EXTERNAL_MODULES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cloned_repositories)
 
-set(YAE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/yae")
+set(YAE_ROOT "$ENV{YAE_ROOT}" CACHE PATH "Path to yae checkout")
+if(NOT YAE_ROOT)
+    message(FATAL_ERROR "YAE_ROOT is required when yae lives outside the project source tree")
+endif()
 set(YAE_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${YAE_ROOT}/cmake")
 
@@ -61,40 +64,41 @@ add_subdirectory(${YAE_unordered_dense_SOURCES} yae_modules/martinus/unordered_d
 set(YAE_fmtlib_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/fmt/11_1_1)
 add_subdirectory(${YAE_fmtlib_SOURCES} yae_modules/fmt/11_1_1 SYSTEM)
 
-set(YAE_ecs_SOURCES yae/modules/examples/ecs)
-add_subdirectory(${YAE_ecs_SOURCES} yae_modules/yae/modules/examples/ecs SYSTEM)
+set(YAE_ecs_SOURCES ${YAE_ROOT}/modules/examples/ecs)
+add_subdirectory(${YAE_ecs_SOURCES} yae_modules/modules/examples/ecs SYSTEM)
 
-# https://github.com/google/benchmark v1.8.3
-set(YAE_gbench_main_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/google/benchmark/1_8_3)
+# https://github.com/google/benchmark v1.9.4
+set(YAE_gbench_main_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/google/benchmark/1_9_4)
 option(BENCHMARK_ENABLE_TESTING "" OFF)
-add_subdirectory(${YAE_gbench_main_SOURCES} yae_modules/google/benchmark/1_8_3 SYSTEM)
+add_subdirectory(${YAE_gbench_main_SOURCES} yae_modules/google/benchmark/1_9_4 SYSTEM)
 
-set(YAE_ecs_benchmark_SOURCES yae/modules/examples/ecs_benchmark)
-add_subdirectory(${YAE_ecs_benchmark_SOURCES} yae_modules/yae/modules/examples/ecs_benchmark SYSTEM)
+include(${YAE_ROOT}/modules/third_party/gbench_main.module.cmake)
+set(YAE_ecs_benchmark_SOURCES ${YAE_ROOT}/modules/examples/ecs_benchmark)
+add_subdirectory(${YAE_ecs_benchmark_SOURCES} yae_modules/modules/examples/ecs_benchmark SYSTEM)
 
-set(YAE_ecs_tests_SOURCES yae/modules/examples/ecs_tests)
-add_subdirectory(${YAE_ecs_tests_SOURCES} yae_modules/yae/modules/examples/ecs_tests SYSTEM)
+set(YAE_ecs_tests_SOURCES ${YAE_ROOT}/modules/examples/ecs_tests)
+add_subdirectory(${YAE_ecs_tests_SOURCES} yae_modules/modules/examples/ecs_tests SYSTEM)
 
-set(YAE_yae_example_benchmark_SOURCES yae/modules/examples/yae_example_benchmark)
-add_subdirectory(${YAE_yae_example_benchmark_SOURCES} yae_modules/yae/modules/examples/yae_example_benchmark SYSTEM)
+set(YAE_yae_example_benchmark_SOURCES ${YAE_ROOT}/modules/examples/yae_example_benchmark)
+add_subdirectory(${YAE_yae_example_benchmark_SOURCES} yae_modules/modules/examples/yae_example_benchmark SYSTEM)
 
-set(YAE_yae_example_benchmark_main_SOURCES yae/modules/examples/yae_example_benchmark_main)
-add_subdirectory(${YAE_yae_example_benchmark_main_SOURCES} yae_modules/yae/modules/examples/yae_example_benchmark_main SYSTEM)
+set(YAE_yae_example_benchmark_main_SOURCES ${YAE_ROOT}/modules/examples/yae_example_benchmark_main)
+add_subdirectory(${YAE_yae_example_benchmark_main_SOURCES} yae_modules/modules/examples/yae_example_benchmark_main SYSTEM)
 
-set(YAE_yae_example_library_SOURCES yae/modules/examples/yae_example_library)
-add_subdirectory(${YAE_yae_example_library_SOURCES} yae_modules/yae/modules/examples/yae_example_library SYSTEM)
+set(YAE_yae_example_library_SOURCES ${YAE_ROOT}/modules/examples/yae_example_library)
+add_subdirectory(${YAE_yae_example_library_SOURCES} yae_modules/modules/examples/yae_example_library SYSTEM)
 
-set(YAE_yae_example_header_only_SOURCES yae/modules/examples/yae_example_header_only)
-add_subdirectory(${YAE_yae_example_header_only_SOURCES} yae_modules/yae/modules/examples/yae_example_header_only SYSTEM)
+set(YAE_yae_example_header_only_SOURCES ${YAE_ROOT}/modules/examples/yae_example_header_only)
+add_subdirectory(${YAE_yae_example_header_only_SOURCES} yae_modules/modules/examples/yae_example_header_only SYSTEM)
 
-set(YAE_yae_example_executable_SOURCES yae/modules/examples/yae_example_executable)
-add_subdirectory(${YAE_yae_example_executable_SOURCES} yae_modules/yae/modules/examples/yae_example_executable SYSTEM)
+set(YAE_yae_example_executable_SOURCES ${YAE_ROOT}/modules/examples/yae_example_executable)
+add_subdirectory(${YAE_yae_example_executable_SOURCES} yae_modules/modules/examples/yae_example_executable SYSTEM)
 
-set(YAE_yae_example_tests_SOURCES yae/modules/examples/yae_example_tests)
-add_subdirectory(${YAE_yae_example_tests_SOURCES} yae_modules/yae/modules/examples/yae_example_tests SYSTEM)
+set(YAE_yae_example_tests_SOURCES ${YAE_ROOT}/modules/examples/yae_example_tests)
+add_subdirectory(${YAE_yae_example_tests_SOURCES} yae_modules/modules/examples/yae_example_tests SYSTEM)
 
-set(YAE_yae_example_tests_main_SOURCES yae/modules/examples/yae_example_tests_main)
-add_subdirectory(${YAE_yae_example_tests_main_SOURCES} yae_modules/yae/modules/examples/yae_example_tests_main SYSTEM)
+set(YAE_yae_example_tests_main_SOURCES ${YAE_ROOT}/modules/examples/yae_example_tests_main)
+add_subdirectory(${YAE_yae_example_tests_main_SOURCES} yae_modules/modules/examples/yae_example_tests_main SYSTEM)
 
 # https://github.com/Sunday111/ass main
 set(YAE_ass_SOURCES ${YAE_EXTERNAL_MODULES_DIR}/Sunday111/ass)
@@ -141,6 +145,7 @@ add_subdirectory(${YAE_klgl_SOURCES} yae_modules/cloned_repositories/Sunday111/k
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
 
+include(${YAE_PROJECT_ROOT}/src/verlet_cuda/add_cuda.cmake)
 set(YAE_falling_sand_example_SOURCES cloned_repositories/Sunday111/klgl/examples/falling_sand)
 add_subdirectory(${YAE_falling_sand_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/falling_sand SYSTEM)
 

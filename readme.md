@@ -1,44 +1,45 @@
-# Clone configure and build
+# Clone, Configure And Build
 
 For this project you will need CUDA toolkit installed in your system.
 
 
 # Clone
 
-This project uses my scripts to clone dependencies and generate CMake files. It lives in `./yae` submodule. So you have to clone repo and update submodule.
+This project uses `yae` to clone dependencies, generate CMake files, configure CMake, build, format and run.
 
 ```bash
+git clone https://github.com/Sunday111/yae
 git clone https://github.com/Sunday111/verlet_cuda
 cd verlet_cuda
-git submodule update --init
 ```
 
-# Dependencies and cmake files
-
-Now you can invoke the script with python
+You can invoke `yae` directly from its checkout:
 
 ```bash
-python ./yae/scripts/make_project_files.py --project_dir=.
+../yae/yae configure
+../yae/yae build
+../yae/yae run
 ```
 
-# Generate project files
+Or install a system symlink and call it as `yae`:
 
 ```bash
-cmake -S . -B ./build
+sudo ln -sf "$HOME/github/Sunday111/yae/yae" /usr/bin/yae
 ```
 
-# Build
+Compiler, generator, build directory, build targets and the default run target live in `yae_project.json` under
+`default_configuration`.
+
+Machine-specific overrides can go in ignored `local-config.json` next to `yae_project.json`.
+
+# Configure and build
 
 ```bash
-cmake --build ./build --config Release --target verlet_cuda
+yae build
 ```
 
-It builds only the simulation project itself in release configuration without tests, benchmarks and examples from dependencies.
-
-With cmake generators that do not use parallel building by default you might want to build in parallel explicitly:
+# Run
 
 ```bash
-cmake --build ./build --config Release --target verlet_cuda --parallel
+yae run
 ```
-
-Or open generated project files in editor of choice.

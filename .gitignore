@@ -1,3 +1,4 @@
 .cache
 build
 cloned_repositories
+local-config.json
