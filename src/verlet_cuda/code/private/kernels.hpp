@@ -35,7 +35,7 @@ class Kernels
 {
 public:
     static void ClearGrid(cudaStream_t& stream, GridCell* cells);
-    static void PopulateGrid(cudaStream_t& stream, GridCell* cells, std::span<VerletObject> objects);
+    static void PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects);
     static void SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset);
     static void UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects);
 };

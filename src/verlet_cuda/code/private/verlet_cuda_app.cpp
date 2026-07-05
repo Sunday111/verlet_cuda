@@ -194,10 +194,11 @@ void VerletCudaApp::CreateMesh()
     vertices.reserve(mesh_data.vertices.size());
     for (size_t i = 0; i != mesh_data.vertices.size(); ++i)
     {
-        vertices.emplace_back(MeshVertex{
-            .vertex = mesh_data.vertices[i],
-            .tex_coord = mesh_data.texture_coordinates[i],
-        });
+        vertices.emplace_back(
+            MeshVertex{
+                .vertex = mesh_data.vertices[i],
+                .tex_coord = mesh_data.texture_coordinates[i],
+            });
     }
 
     mesh_ = klgl::MeshOpenGL::MakeFromData(std::span{vertices}, std::span{mesh_data.indices}, mesh_data.topology);
@@ -291,7 +292,7 @@ void VerletCudaApp::Tick()
             {
                 CheckResult(
                     cudaMemsetAsync(grid_cells_.get(), 255, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_));
-                Kernels::PopulateGrid(cuda_stream_, grid_cells_.get(), device_objects);
+                Kernels::PopulateGrid(cuda_stream_, grid_cells_.get(), device_objects.data(), device_objects.size());
 
                 // CheckGrid(device_positions);
 
@@ -312,43 +313,54 @@ void VerletCudaApp::Tick()
             cudaStreamSynchronize(cuda_stream_);
         });
 
-    if (ImGui::CollapsingHeader("Perf"))
-    {
-        std::string txt = fmt::format("{}", sim_time);
-        ImGui::Text("%s", txt.data());                 // NOLINT
-        ImGui::Text("Framerate: %f", GetFramerate());  // NOLINT
-    }
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    constexpr ImVec2 kDebugWindowSize{640.0f, 840.0f};
+    ImGui::SetNextWindowSize(kDebugWindowSize, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2{viewport->WorkPos.x + 32.0f, viewport->WorkPos.y + 32.0f}, ImGuiCond_FirstUseEver);
 
-    if (ImGui::CollapsingHeader("Emitters"))
+    if (ImGui::Begin("Debug"))
     {
-        for (auto& emitter : emitters_)
+        if (ImGui::CollapsingHeader("Perf"))
         {
-            emitter->GUI();
+            std::string txt = fmt::format("{}", sim_time);
+            ImGui::Text("%s", txt.data());                                      // NOLINT
+            ImGui::Text("Framerate: %f", static_cast<double>(GetFramerate()));  // NOLINT
         }
 
-        if (ImGui::Button("New Radial"))
+        if (ImGui::CollapsingHeader("Emitters"))
         {
-            emitters_.push_back(std::make_unique<RadialEmitter>());
-        }
-
-        if (ImGui::Button("Enable All"))
-        {
+            ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.58f);
             for (auto& emitter : emitters_)
             {
-                emitter->enabled = true;
+                emitter->GUI();
             }
-        }
+            ImGui::PopItemWidth();
 
-        ImGui::SameLine();
-
-        if (ImGui::Button("Disable All"))
-        {
-            for (auto& emitter : emitters_)
+            if (ImGui::Button("New Radial"))
             {
-                emitter->enabled = false;
+                emitters_.push_back(std::make_unique<RadialEmitter>());
+            }
+
+            if (ImGui::Button("Enable All"))
+            {
+                for (auto& emitter : emitters_)
+                {
+                    emitter->enabled = true;
+                }
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Disable All"))
+            {
+                for (auto& emitter : emitters_)
+                {
+                    emitter->enabled = false;
+                }
             }
         }
     }
+    ImGui::End();
 
     // Tick emitters
     {
@@ -398,15 +410,21 @@ void VerletCudaApp::Tick()
         char* text_begin = text.data();
         char* text_end = std::next(text_begin, static_cast<int>(text.size()));
         const Vec2f text_size = FromImVec(ImGui::CalcTextSize(text_begin, text_end));
-        const Vec2f root_window_size = GetWindow().GetSize2f();
-        const Vec2f text_center{(root_window_size.x() - text_size.x()) / 2, 150};
         const Vec2f text_window_size = text_size + 2 * window_padding;
+        const ImVec2 counter_margin{32.0f, 32.0f};
 
         constexpr int flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
-                              ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+                              ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
+                              ImGuiWindowFlags_AlwaysAutoResize;
 
-        ImGui::SetNextWindowPos(ToImVec(text_center));
+        ImGui::SetNextWindowPos(
+            ImVec2{
+                viewport->WorkPos.x + viewport->WorkSize.x - counter_margin.x,
+                viewport->WorkPos.y + counter_margin.y,
+            },
+            ImGuiCond_Always,
+            ImVec2{1.0f, 0.0f});
         ImGui::SetNextWindowSize(ToImVec(text_window_size));
 
         if (ImGui::Begin("Counter", nullptr, flags))

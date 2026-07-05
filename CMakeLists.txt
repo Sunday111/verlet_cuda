@@ -141,6 +141,9 @@ add_subdirectory(${YAE_klgl_SOURCES} yae_modules/cloned_repositories/Sunday111/k
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
 
+set(YAE_falling_sand_example_SOURCES cloned_repositories/Sunday111/klgl/examples/falling_sand)
+add_subdirectory(${YAE_falling_sand_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/falling_sand SYSTEM)
+
 set(YAE_klgl_compute_shader_example_SOURCES cloned_repositories/Sunday111/klgl/examples/compute_shader)
 add_subdirectory(${YAE_klgl_compute_shader_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/compute_shader SYSTEM)
 
@@ -167,6 +170,9 @@ add_subdirectory(${YAE_klgl_minimal_quad_example_SOURCES} yae_modules/cloned_rep
 
 set(YAE_klgl_painter2d_example_SOURCES cloned_repositories/Sunday111/klgl/examples/painter2d)
 add_subdirectory(${YAE_klgl_painter2d_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/painter2d SYSTEM)
+
+set(YAE_klgl_pendulum_example_SOURCES cloned_repositories/Sunday111/klgl/examples/pendulum)
+add_subdirectory(${YAE_klgl_pendulum_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/pendulum SYSTEM)
 
 set(YAE_klgl_post_processing_example_SOURCES cloned_repositories/Sunday111/klgl/examples/post_processing)
 add_subdirectory(${YAE_klgl_post_processing_example_SOURCES} yae_modules/cloned_repositories/Sunday111/klgl/examples/post_processing SYSTEM)

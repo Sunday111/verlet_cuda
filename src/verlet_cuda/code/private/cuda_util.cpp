@@ -21,7 +21,7 @@ void CudaGlInterop::UnregisterResource(cudaGraphicsResource* resource)
 
 CudaMappedGraphicsResourcePtr CudaGlInterop::MapResource(cudaGraphicsResource* resource)
 {
-    CheckResult(cudaGraphicsMapResources(1, &resource, 0));
+    CheckResult(cudaGraphicsMapResources(1, &resource, nullptr));
     return CudaMappedGraphicsResourcePtr{resource};
 }
 
@@ -39,7 +39,7 @@ std::span<uint8_t> CudaGlInterop::GetDeviceDataPtr(const CudaMappedGraphicsResou
 
 void CudaGlInterop::UnmapResource(cudaGraphicsResource* resource)
 {
-    [[maybe_unused]] auto err = cudaGraphicsUnmapResources(1, &resource, 0);
+    [[maybe_unused]] auto err = cudaGraphicsUnmapResources(1, &resource, nullptr);
     assert(err == cudaSuccess);
 }
 }  // namespace verlet
