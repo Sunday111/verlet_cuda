@@ -33,4 +33,4 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/add_cuda.cmake)
 add_custom_target(verlet_cuda_copy_files ALL
     ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/content" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content
 )
-add_dependencies(verlet_cuda_copy_files verlet_cuda)
+add_dependencies(verlet_cuda verlet_cuda_copy_files)

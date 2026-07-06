@@ -9,11 +9,9 @@
             "CCACHE_DIR": ".cache/ccache"
         },
         "build_targets": [
-            "verlet_cuda",
-            "verlet_cuda_copy_files"
+            "verlet_cuda"
         ],
         "run_target": "verlet_cuda",
-        "run_copy_target": "verlet_cuda_copy_files",
         "cmake_definitions": {
             "CMAKE_BUILD_TYPE": "Release",
             "CMAKE_C_COMPILER": "clang",
