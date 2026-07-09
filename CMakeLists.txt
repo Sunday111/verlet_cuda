@@ -37,68 +37,68 @@ enable_lto_globally()
 
 
 # https://github.com/fmtlib/fmt 11.1.1
-set(YAE_fmtlib_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/fmt/11_1_1)
-add_subdirectory(${YAE_fmtlib_SOURCES} yae_modules/fmt/11_1_1 SYSTEM)
+set(YAE_fmtlib_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/fmtlib/11.1.1/fmt)
+add_subdirectory(${YAE_fmtlib_SOURCES} yae_modules/fmtlib/11.1.1/fmt SYSTEM)
 
 # https://github.com/google/googletest v1.15.2
-set(YAE_gtest_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/googletest/1_15_2)
+set(YAE_gtest_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/v1.15.2/googletest)
 option(INSTALL_GTEST "" OFF)
 option(BUILD_GMOCK "" OFF)
-add_subdirectory(${YAE_gtest_SOURCES} yae_modules/google/googletest/1_15_2 SYSTEM)
+add_subdirectory(${YAE_gtest_SOURCES} yae_modules/google/v1.15.2/googletest SYSTEM)
 
 # https://github.com/Sunday111/EverydayTools master
-set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools)
+set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/master/EverydayTools)
 option(EDT_WITH_TESTS "" ON)
 option(EDT_FETCH_GOOGLE_TESTS "" OFF)
 option(EDT_FIND_GTEST_PACKAGE "" OFF)
-add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/EverydayTools SYSTEM)
+add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/master/EverydayTools SYSTEM)
 
 # https://github.com/Sunday111/ass main
-set(YAE_ass_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/ass)
+set(YAE_ass_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/main/ass)
 option(ASS_ENABLE_TESTING "" ON)
 option(ASS_FETCH_GOOGLE_TESTS "" OFF)
-add_subdirectory(${YAE_ass_SOURCES} yae_modules/Sunday111/ass SYSTEM)
+add_subdirectory(${YAE_ass_SOURCES} yae_modules/Sunday111/main/ass SYSTEM)
 
 # https://github.com/Sunday111/CppReflection for_yae
-set(YAE_CppReflection_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection)
-add_subdirectory(${YAE_CppReflection_SOURCES} yae_modules/Sunday111/CppReflection SYSTEM)
+set(YAE_CppReflection_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/for_yae/CppReflection)
+add_subdirectory(${YAE_CppReflection_SOURCES} yae_modules/Sunday111/for_yae/CppReflection SYSTEM)
 
 # https://github.com/nlohmann/json develop
-set(YAE_nlohmann_json_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/nlohmann/json)
-add_subdirectory(${YAE_nlohmann_json_SOURCES} yae_modules/nlohmann/json SYSTEM)
+set(YAE_nlohmann_json_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/nlohmann/develop/json)
+add_subdirectory(${YAE_nlohmann_json_SOURCES} yae_modules/nlohmann/develop/json SYSTEM)
 
 # https://github.com/Sunday111/glad main
-set(YAE_glad_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/glad)
-add_subdirectory(${YAE_glad_SOURCES} yae_modules/Sunday111/glad SYSTEM)
+set(YAE_glad_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/main/glad)
+add_subdirectory(${YAE_glad_SOURCES} yae_modules/Sunday111/main/glad SYSTEM)
 
 # https://github.com/glfw/glfw master
-set(YAE_glfw_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/glfw/glfw)
+set(YAE_glfw_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/glfw/master/glfw)
 option(GLFW_BUILD_EXAMPLES "" OFF)
 option(GLFW_BUILD_TESTS "" OFF)
 option(GLFW_BUILD_DOCS "" OFF)
-add_subdirectory(${YAE_glfw_SOURCES} yae_modules/glfw/glfw SYSTEM)
+add_subdirectory(${YAE_glfw_SOURCES} yae_modules/glfw/master/glfw SYSTEM)
 
 # https://github.com/ocornut/imgui v1.90.9
-set(YAE_imgui_sources_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/ocornut/imgui)
+set(YAE_imgui_sources_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/ocornut/v1.90.9/imgui)
 set(YAE_imgui_glfw_cmake_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae/imgui_glfw_cmake)
 add_subdirectory(${YAE_imgui_glfw_cmake_SOURCES} yae_modules/Sunday111/yae/imgui_glfw_cmake SYSTEM)
 
 # https://github.com/jeremy-rifkin/cpptrace main
-set(YAE_cpptrace_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/jeremy-rifkin/cpptrace)
-add_subdirectory(${YAE_cpptrace_SOURCES} yae_modules/jeremy-rifkin/cpptrace SYSTEM)
+set(YAE_cpptrace_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/jeremy-rifkin/main/cpptrace)
+add_subdirectory(${YAE_cpptrace_SOURCES} yae_modules/jeremy-rifkin/main/cpptrace SYSTEM)
 
 # https://github.com/martinus/unordered_dense v4.1.2
-set(YAE_unordered_dense_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/martinus/unordered_dense)
-add_subdirectory(${YAE_unordered_dense_SOURCES} yae_modules/martinus/unordered_dense SYSTEM)
+set(YAE_unordered_dense_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/martinus/v4.1.2/unordered_dense)
+add_subdirectory(${YAE_unordered_dense_SOURCES} yae_modules/martinus/v4.1.2/unordered_dense SYSTEM)
 
 # https://github.com/Neargye/magic_enum v0.9.7
-set(YAE_magic_enum_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Neargye/magic_enum)
-add_subdirectory(${YAE_magic_enum_SOURCES} yae_modules/Neargye/magic_enum SYSTEM)
+set(YAE_magic_enum_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Neargye/v0.9.7/magic_enum)
+add_subdirectory(${YAE_magic_enum_SOURCES} yae_modules/Neargye/v0.9.7/magic_enum SYSTEM)
 
 # https://github.com/TartanLlama/expected v1.1.0
-set(YAE_expected_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/TartanLlama/expected)
+set(YAE_expected_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/TartanLlama/v1.1.0/expected)
 option(EXPECTED_BUILD_TESTS "" OFF)
-add_subdirectory(${YAE_expected_SOURCES} yae_modules/TartanLlama/expected SYSTEM)
+add_subdirectory(${YAE_expected_SOURCES} yae_modules/TartanLlama/v1.1.0/expected SYSTEM)
 
 set(YAE_klgl_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/main/klgl/klgl)
 add_subdirectory(${YAE_klgl_SOURCES} yae_modules/Sunday111/main/klgl/klgl SYSTEM)
@@ -111,9 +111,9 @@ set(YAE_ecs_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/main/yae-support/mo
 add_subdirectory(${YAE_ecs_SOURCES} yae_modules/Sunday111/main/yae-support/modules/examples/ecs SYSTEM)
 
 # https://github.com/google/benchmark v1.9.4
-set(YAE_gbench_main_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/benchmark/1_9_4)
+set(YAE_gbench_main_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/v1.9.4/benchmark)
 option(BENCHMARK_ENABLE_TESTING "" OFF)
-add_subdirectory(${YAE_gbench_main_SOURCES} yae_modules/google/benchmark/1_9_4 SYSTEM)
+add_subdirectory(${YAE_gbench_main_SOURCES} yae_modules/google/v1.9.4/benchmark SYSTEM)
 
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/main/yae-support/modules/third_party/gbench_main.module.cmake)
 set(YAE_ecs_benchmark_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/main/yae-support/modules/examples/ecs_benchmark)
