@@ -1,8 +1,10 @@
 {
     "ModuleType": "Executable",
     "ExtraCMakeFiles": [
-        "add_cuda",
-        "compile_shaders"
+        "add_cuda"
+    ],
+    "CopyDirectoriesAfterBuild": [
+        "content"
     ],
     "Dependencies": {
         "GitPackages": [
