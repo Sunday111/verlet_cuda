@@ -35,6 +35,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${YAE_SUPPORT_ROOT}/cmake")
 include(yae_lto)
 enable_lto_globally()
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 
 # https://github.com/fmtlib/fmt 11.1.1
 set(YAE_fmtlib_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/fmtlib/fmt/11.1.1)

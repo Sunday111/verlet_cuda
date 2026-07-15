@@ -30,17 +30,11 @@ target_link_libraries(verlet_cuda PUBLIC fmt
 target_include_directories(verlet_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/code/public)
 target_include_directories(verlet_cuda PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/code/private)
 include(${CMAKE_CURRENT_SOURCE_DIR}/add_cuda.cmake)
-set(verlet_cuda_copy_files_outputs)
-file(GLOB_RECURSE verlet_cuda_copy_files_sources_0 CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/content/*")
-foreach(source_file ${verlet_cuda_copy_files_sources_0})
-    file(RELATIVE_PATH rel_path "${CMAKE_CURRENT_SOURCE_DIR}/content" "${source_file}")
-    set(copied_file "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content/${rel_path}")
-    add_custom_command(
-        OUTPUT "${copied_file}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_newer "${source_file}" "${copied_file}"
-        DEPENDS "${source_file}"
-        COMMENT "stage ${rel_path}")
-    list(APPEND verlet_cuda_copy_files_outputs "${copied_file}")
-endforeach()
-add_custom_target(verlet_cuda_copy_files ALL DEPENDS ${verlet_cuda_copy_files_outputs})
+add_custom_target(verlet_cuda_copy_files ALL
+    COMMAND ${Python3_EXECUTABLE} "${YAE_SUPPORT_ROOT}/scripts/stage_directories.py"
+            --destination "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content"
+            --source "${CMAKE_CURRENT_SOURCE_DIR}/content"
+            --manifest "${CMAKE_CURRENT_BINARY_DIR}/verlet_cuda_copy_files_content.manifest"
+    COMMENT "stage content of verlet_cuda"
+    VERBATIM)
 add_dependencies(verlet_cuda verlet_cuda_copy_files)
