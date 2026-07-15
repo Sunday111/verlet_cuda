@@ -7,7 +7,7 @@
 #include "EverydayTools/Math/Math.hpp"
 #include "coloring/spawn_color/spawn_color_strategy.hpp"
 #include "constants.hpp"
-#include "klgl/ui/simple_type_widget.hpp"
+#include "klvk/ui/simple_type_widget.hpp"
 #include "verlet_cuda_app.hpp"
 
 namespace verlet
@@ -63,12 +63,12 @@ void RadialEmitter::GUI()
         EnabledCheckbox();
 
         bool c = false;
-        c |= klgl::SimpleTypeWidget("location", config.position);
-        c |= klgl::SimpleTypeWidget("phase degrees", config.phase_degrees);
-        c |= klgl::SimpleTypeWidget("sector degrees", config.sector_degrees);
-        c |= klgl::SimpleTypeWidget("radius", config.radius);
-        c |= klgl::SimpleTypeWidget("speed factor", config.speed_factor);
-        c |= klgl::SimpleTypeWidget("rotation speed", config.rotation_speed);
+        c |= klvk::SimpleTypeWidget("location", config.position);
+        c |= klvk::SimpleTypeWidget("phase degrees", config.phase_degrees);
+        c |= klvk::SimpleTypeWidget("sector degrees", config.sector_degrees);
+        c |= klvk::SimpleTypeWidget("radius", config.radius);
+        c |= klvk::SimpleTypeWidget("speed factor", config.speed_factor);
+        c |= klvk::SimpleTypeWidget("rotation speed", config.rotation_speed);
 
         if (c)
         {

@@ -3,9 +3,9 @@
     "dependencies": {
         "packages": [
             {
-                "link": "https://github.com/Sunday111/klgl main",
+                "link": "https://github.com/Sunday111/klvk main",
                 "packages": [
-                    "klgl"
+                    "klvk"
                 ]
             }
         ]

@@ -1,4 +1,4 @@
-#include "klgl/error_handling.hpp"
+#include "klvk/error_handling.hpp"
 #include "verlet_cuda_app.hpp"
 
 void Main()
@@ -9,6 +9,6 @@ void Main()
 
 int main()
 {
-    klgl::ErrorHandling::InvokeAndCatchAll(Main);
+    klvk::ErrorHandling::InvokeAndCatchAll(Main);
     return 0;
 }

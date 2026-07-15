@@ -1,19 +1,17 @@
 {
     "ModuleType": "Executable",
     "ExtraCMakeFiles": [
-        "add_cuda"
-    ],
-    "CopyDirectoriesAfterBuild": [
-        "content"
+        "add_cuda",
+        "compile_shaders"
     ],
     "Dependencies": {
         "GitPackages": [
-            "https://github.com/Sunday111/klgl main"
+            "https://github.com/Sunday111/klvk main"
         ],
         "Public": [
             "fmtlib",
             "edt",
-            "klgl"
+            "klvk"
         ],
         "Private": []
     }

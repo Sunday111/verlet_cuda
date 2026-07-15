@@ -26,11 +26,8 @@ add_executable(verlet_cuda ${module_source_files})
 set_generic_compiler_options(verlet_cuda PRIVATE)
 target_link_libraries(verlet_cuda PUBLIC fmt
                                          edt
-                                         klgl)
+                                         klvk)
 target_include_directories(verlet_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/code/public)
 target_include_directories(verlet_cuda PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/code/private)
 include(${CMAKE_CURRENT_SOURCE_DIR}/add_cuda.cmake)
-add_custom_target(verlet_cuda_copy_files ALL
-    ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/content" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content
-)
-add_dependencies(verlet_cuda verlet_cuda_copy_files)
+include(${CMAKE_CURRENT_SOURCE_DIR}/compile_shaders.cmake)

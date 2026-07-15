@@ -4,21 +4,18 @@
 
 #include <EverydayTools/Math/FloatRange.hpp>
 #include <EverydayTools/Math/Math.hpp>
-#include <klgl/mesh/mesh_data.hpp>
-#include <klgl/mesh/procedural_mesh_generator.hpp>
 
 #include "cuda_util.hpp"
 #include "imgui.h"
 #include "kernels.hpp"
-#include "klgl/application.hpp"
-#include "klgl/camera/camera_2d.hpp"
-#include "klgl/events/event_listener_interface.hpp"
-#include "klgl/events/mouse_events.hpp"
-#include "klgl/opengl/gl_api.hpp"
-#include "klgl/opengl/vertex_attribute_helper.hpp"
-#include "klgl/shader/shader.hpp"
-#include "klgl/texture/texture.hpp"
-#include "klgl/window.hpp"
+#include "klvk/application.hpp"
+#include "klvk/camera/camera_2d.hpp"
+#include "klvk/events/event_listener_interface.hpp"
+#include "klvk/events/mouse_events.hpp"
+#include "klvk/vulkan/descriptor_sets.hpp"
+#include "klvk/vulkan/texture.hpp"
+#include "klvk/vulkan/vk_object.hpp"
+#include "klvk/window.hpp"
 
 namespace verlet
 {
@@ -26,28 +23,19 @@ namespace verlet
 class SpawnColorStrategy;
 class Emitter;
 
-class VerletCudaApp : public klgl::Application
+class VerletCudaApp : public klvk::Application
 {
 public:
-    using GL = klgl::OpenGl;
-    using ColorType = Vec4f;
-    using ColorAttribHelper = klgl::VertexBufferHelperStatic<ColorType>;
-    using PositionType = Vec2f;
-    using PositionAttribHelper = klgl::VertexBufferHelperStatic<PositionType>;
-    using ScaleType = Vec2f;
-    using ScaleAttribHelper = klgl::VertexBufferHelperStatic<ScaleType>;
-
     static constexpr unsigned kSeed = 12345;
 
     VerletCudaApp();
     ~VerletCudaApp() override;
 
     void Initialize() override;
-    void RegisterGLBuffers();
-    void CreateMesh();
     void CreateCircleMaskTexture();
+    void CreatePipeline();
     void UpdateCamera();
-    void OnMouseScroll(const klgl::events::OnMouseScroll& event);
+    void OnMouseScroll(const klvk::events::OnMouseScroll& event);
     Vec2f GetMousePositionInWorldCoordinates() const;
     void Tick() override;
     void AddObject(const VerletObject& object)
@@ -64,35 +52,29 @@ public:
 
 private:
     void SpawnPendingObjects();
-    std::tuple<CudaMappedGraphicsResourcePtr, std::span<VerletObject>> ReserveAndGetDevicePtr(size_t required_size);
+    // Grows the shared buffer when needed and returns a device view of the objects.
+    std::span<VerletObject> ReserveAndGetDevicePtr(size_t required_size);
+    void DrawObjects();
 
 private:
     cudaStream_t cuda_stream_{};
 
-    std::unique_ptr<klgl::events::IEventListener> event_listener_;
+    std::unique_ptr<klvk::events::IEventListener> event_listener_;
     std::unique_ptr<SpawnColorStrategy> spawn_color_strategy_;
 
     float zoom_power_ = 0.f;
-    klgl::Camera2d camera_{};
-    klgl::Viewport viewport_{};
-    klgl::RenderTransforms2d render_transforms_{};
-    std::shared_ptr<klgl::Shader> shader_;
+    klvk::Camera2d camera_{};
+    klvk::Viewport viewport_{};
+    klvk::RenderTransforms2d render_transforms_{};
 
-    size_t a_vertex_{};
-    size_t a_tex_coord_{};
-    size_t a_color_{};
-    size_t a_position_{};
-    size_t a_scale_{};
+    // The objects live in memory shared with CUDA: kernels write it, the vertex
+    // shader reads it as an instance-rate vertex buffer.
+    CudaVkBuffer objects_buffer_;
 
-    klgl::GlObject<klgl::GlBufferId> objects_vbo_;
-    CudaGraphicsResourcePtr objects_vbo_resource_;
-
-    std::shared_ptr<klgl::MeshOpenGL> mesh_;
-
-    klgl::UniformHandle u_texture_{"u_texture"};
-    std::unique_ptr<klgl::Texture> texture_;
-
-    klgl::UniformHandle u_world_to_view_{"u_world_to_view"};
+    std::unique_ptr<klvk::Texture> texture_;
+    klvk::DescriptorSets descriptor_sets_;
+    klvk::VkObject<VkPipelineLayout> pipeline_layout_;
+    klvk::VkObject<VkPipeline> pipeline_;
 
     CudaPtr<GridCell> grid_cells_;
 
