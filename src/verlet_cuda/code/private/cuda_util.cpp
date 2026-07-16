@@ -73,8 +73,10 @@ CudaVkBuffer::CudaVkBuffer(klvk::DeviceContext& context, size_t bytes) : context
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .pNext = &dedicated_info,
         .allocationSize = requirements.size,
-        .memoryTypeIndex =
-            FindMemoryType(context.GetPhysicalDevice(), requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+        .memoryTypeIndex = FindMemoryType(
+            context.GetPhysicalDevice(),
+            requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
     klvk::CheckVkResult(vkAllocateMemory(device, &allocate_info, nullptr, &memory_), "vkAllocateMemory");
     klvk::CheckVkResult(vkBindBufferMemory(device, buffer_, memory_, 0), "vkBindBufferMemory");
