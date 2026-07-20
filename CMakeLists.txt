@@ -48,12 +48,12 @@ option(INSTALL_GTEST "" OFF)
 option(BUILD_GMOCK "" OFF)
 add_subdirectory(${YAE_gtest_SOURCES} yae_modules/google/googletest/v1.15.2 SYSTEM)
 
-# https://github.com/Sunday111/EverydayTools master
-set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools/master)
+# https://github.com/Sunday111/EverydayTools main
+set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools/main)
 option(EDT_WITH_TESTS "" ON)
 option(EDT_FETCH_GOOGLE_TESTS "" OFF)
 option(EDT_FIND_GTEST_PACKAGE "" OFF)
-add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/EverydayTools/master SYSTEM)
+add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/EverydayTools/main SYSTEM)
 
 # https://github.com/Sunday111/ass main
 set(YAE_ass_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/ass/main)
