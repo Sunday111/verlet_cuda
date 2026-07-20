@@ -14,8 +14,8 @@ class Emitter
 public:
     virtual void Tick(VerletCudaApp& app) = 0;
     virtual void GUI() = 0;
-    virtual constexpr EmitterType GetType() const = 0;
-    virtual std::unique_ptr<Emitter> Clone() const = 0;
+    [[nodiscard]] virtual constexpr EmitterType GetType() const = 0;
+    [[nodiscard]] virtual std::unique_ptr<Emitter> Clone() const = 0;
     virtual void ResetRuntimeState();
     virtual ~Emitter() = default;
 

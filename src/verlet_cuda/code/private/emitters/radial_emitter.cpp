@@ -24,7 +24,7 @@ void RadialEmitter::Tick(VerletCudaApp& app)
     if (app.GetObjectsCount() >= app.GetMaxObjectsCount()) return;
 
     const float sector_radians = edt::Math::DegToRad(std::clamp(config.sector_degrees, 0.f, 360.f));
-    const size_t num_directions = static_cast<size_t>(
+    const auto num_directions = static_cast<size_t>(
         sector_radians * (config.radius + constants::kObjectRadius) / (2 * constants::kObjectRadius));
     const float phase_radians = sector_radians / 2 + edt::Math::DegToRad(state.phase_degrees);
 

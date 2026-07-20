@@ -33,8 +33,8 @@ public:
 
     void Tick(VerletCudaApp& app) override;
     void GUI() override;
-    std::unique_ptr<Emitter> Clone() const override;
-    constexpr EmitterType GetType() const override { return EmitterType::Radial; }
+    [[nodiscard]] std::unique_ptr<Emitter> Clone() const override;
+    [[nodiscard]] constexpr EmitterType GetType() const override { return EmitterType::Radial; }
     void ResetRuntimeState() override;
 
     RadialEmitterConfig config{};

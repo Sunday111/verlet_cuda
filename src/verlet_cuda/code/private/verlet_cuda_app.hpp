@@ -36,7 +36,7 @@ public:
     void CreatePipeline();
     void UpdateCamera();
     void OnMouseScroll(const klvk::events::OnMouseScroll& event);
-    Vec2f GetMousePositionInWorldCoordinates() const;
+    [[nodiscard]] Vec2f GetMousePositionInWorldCoordinates() const;
     void Tick() override;
     void AddObject(const VerletObject& object)
     {

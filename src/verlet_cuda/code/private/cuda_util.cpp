@@ -91,7 +91,8 @@ CudaVkBuffer::CudaVkBuffer(klvk::DeviceContext& context, size_t bytes) : context
 
     cudaExternalMemoryHandleDesc handle_desc{};
     handle_desc.type = cudaExternalMemoryHandleTypeOpaqueFd;
-    handle_desc.handle.fd = fd;
+    // CUDA's C ABI requires selecting the fd member of this tagged handle union.
+    handle_desc.handle.fd = fd;  // NOLINT(cppcoreguidelines-pro-type-union-access)
     handle_desc.size = requirements.size;
     handle_desc.flags = cudaExternalMemoryDedicated;
     // On success CUDA takes ownership of the fd and closes it itself, so it must not be

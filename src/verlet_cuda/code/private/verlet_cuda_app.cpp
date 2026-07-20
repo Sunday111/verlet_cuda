@@ -34,7 +34,7 @@ struct PushConstants
 
 [[nodiscard]] static constexpr ImVec2 ToImVec(Vec2f v) noexcept
 {
-    return ImVec2(v.x(), v.y());
+    return {v.x(), v.y()};
 }
 
 [[nodiscard]] static constexpr Vec2f FromImVec(ImVec2 v) noexcept
