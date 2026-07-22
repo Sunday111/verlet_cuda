@@ -110,9 +110,17 @@ add_subdirectory(${YAE_glfw_SOURCES} yae_modules/glfw/glfw/master SYSTEM)
 set(YAE_imgui_vulkan_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/imgui_vulkan)
 add_subdirectory(${YAE_imgui_vulkan_SOURCES} yae_modules/Sunday111/klvk/main/imgui_vulkan SYSTEM)
 
+# https://github.com/gabime/spdlog v1.16.0
+set(YAE_spdlog_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/gabime/spdlog/v1.16.0)
+option(SPDLOG_BUILD_EXAMPLE "" OFF)
+option(SPDLOG_BUILD_TESTS "" OFF)
+option(SPDLOG_FMT_EXTERNAL "" ON)
+add_subdirectory(${YAE_spdlog_SOURCES} yae_modules/gabime/spdlog/v1.16.0 SYSTEM)
+
 set(YAE_klvk_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk)
 add_subdirectory(${YAE_klvk_SOURCES} yae_modules/Sunday111/klvk/main/klvk SYSTEM)
 
+include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/ffmpeg.cmake)
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/shader_cache.cmake)
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/vulkan_api.cmake)
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
