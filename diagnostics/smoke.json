@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "presentation": "offscreen",
+  "framebuffer_size": [1280, 720],
+  "clock": {
+    "mode": "fixed",
+    "step_seconds": 0.016666666666666666
+  },
+  "input": [
+    {
+      "frame": 2,
+      "type": "mouse_move",
+      "position": [700, 360]
+    },
+    {
+      "frame": 2,
+      "type": "mouse_scroll",
+      "offset": [0, 20]
+    },
+    {
+      "frame": 3,
+      "type": "mouse_button",
+      "button": "left",
+      "action": "press"
+    },
+    {
+      "frame": 4,
+      "type": "mouse_button",
+      "button": "left",
+      "action": "release"
+    }
+  ],
+  "captures": [
+    {
+      "frame": 30,
+      "path": "verlet_cuda-smoke/settled.ppm",
+      "include_ui": false
+    },
+    {
+      "frame": 60,
+      "path": "verlet_cuda-smoke/fallen.ppm",
+      "include_ui": false
+    }
+  ],
+  "exit": {
+    "after_last_capture": true
+  }
+}

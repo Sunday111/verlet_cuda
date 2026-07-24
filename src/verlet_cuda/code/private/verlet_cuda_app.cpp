@@ -139,8 +139,8 @@ void VerletCudaApp::CreatePipeline()
         device,
         klvk::GraphicsPipelineBuilder(*this)
             .Layout(pipeline_layout_)
-            .VertexShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.vert")
-            .FragmentShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.frag")
+            .VertexShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.vert.slang")
+            .FragmentShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.frag.slang")
             .VertexBinding(0, sizeof(VerletObject), VK_VERTEX_INPUT_RATE_INSTANCE)
             .VertexAttribute(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(VerletObject, position))
             .VertexAttribute(1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(VerletObject, color))
@@ -267,7 +267,7 @@ void VerletCudaApp::DrawObjects()
     for (size_t column = 0; column != 3; ++column)
     {
         const Vec3f matrix_column = render_transforms_.world_to_view.GetColumn(column);
-        push_constants.columns[column] = Vec4f{matrix_column.x(), matrix_column.y(), matrix_column.z(), 0.f};
+        push_constants.columns.at(column) = Vec4f{matrix_column.x(), matrix_column.y(), matrix_column.z(), 0.f};
     }
     klvk::Vulkan::CmdPushConstants(command_buffer, pipeline_layout_, VK_SHADER_STAGE_VERTEX_BIT, 0, push_constants);
 
@@ -387,7 +387,7 @@ void VerletCudaApp::Tick()
         // Iterate only through emitters that existed before
         for (const size_t emitter_index : std::views::iota(size_t{0}, emitters_.size()))
         {
-            auto& emitter = *emitters_[emitter_index];
+            auto& emitter = *emitters_.at(emitter_index);
             emitter.Tick(*this);
 
             if (emitter.clone_requested)
