@@ -13,6 +13,7 @@
 #include "klvk/events/event_listener_interface.hpp"
 #include "klvk/events/mouse_events.hpp"
 #include "klvk/vulkan/descriptor_sets.hpp"
+#include "klvk/vulkan/pipeline_layout.hpp"
 #include "klvk/vulkan/texture.hpp"
 #include "klvk/vulkan/vk_object.hpp"
 #include "klvk/window.hpp"
@@ -73,7 +74,7 @@ private:
 
     std::unique_ptr<klvk::Texture> texture_;
     klvk::DescriptorSets descriptor_sets_;
-    klvk::VkObject<VkPipelineLayout> pipeline_layout_;
+    klvk::PipelineLayout pipeline_layout_;
     klvk::VkObject<VkPipeline> pipeline_;
 
     CudaPtr<GridCell> grid_cells_;

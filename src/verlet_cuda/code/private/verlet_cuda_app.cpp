@@ -121,16 +121,8 @@ void VerletCudaApp::CreatePipeline()
             .offset = 0,
             .size = sizeof(PushConstants),
         }};
-        const std::array set_layouts{descriptor_sets_.GetLayout()};
-        const VkPipelineLayoutCreateInfo layout_info{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = set_layouts.size(),
-            .pSetLayouts = set_layouts.data(),
-            .pushConstantRangeCount = push_constant_ranges.size(),
-            .pPushConstantRanges = push_constant_ranges.data(),
-        };
-        pipeline_layout_ =
-            klvk::VkObject<VkPipelineLayout>{device, klvk::Vulkan::CreatePipelineLayout(device, layout_info)};
+        const std::array set_layouts{descriptor_sets_.GetLayoutView()};
+        pipeline_layout_ = klvk::PipelineLayout{context, set_layouts, push_constant_ranges};
     }
 
     // The CUDA-written objects buffer is bound as an instance-rate vertex buffer, so the
@@ -254,7 +246,7 @@ void VerletCudaApp::DrawObjects()
     klvk::Vulkan::CmdBindDescriptorSets(
         command_buffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline_layout_,
+        pipeline_layout_.GetHandle(),
         0,
         descriptor_sets);
 
@@ -269,7 +261,12 @@ void VerletCudaApp::DrawObjects()
         const Vec3f matrix_column = render_transforms_.world_to_view.GetColumn(column);
         push_constants.columns.at(column) = Vec4f{matrix_column.x(), matrix_column.y(), matrix_column.z(), 0.f};
     }
-    klvk::Vulkan::CmdPushConstants(command_buffer, pipeline_layout_, VK_SHADER_STAGE_VERTEX_BIT, 0, push_constants);
+    klvk::Vulkan::CmdPushConstants(
+        command_buffer,
+        pipeline_layout_.GetHandle(),
+        VK_SHADER_STAGE_VERTEX_BIT,
+        0,
+        push_constants);
 
     klvk::Vulkan::CmdDraw(command_buffer, 6, static_cast<uint32_t>(used_objects_count_), 0, 0);
 }
