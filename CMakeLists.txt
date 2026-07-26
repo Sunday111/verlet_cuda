@@ -42,18 +42,8 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(YAE_fmtlib_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/fmtlib/fmt/11.1.1)
 add_subdirectory(${YAE_fmtlib_SOURCES} yae_modules/fmtlib/fmt/11.1.1 SYSTEM)
 
-# https://github.com/google/googletest v1.15.2
-set(YAE_gtest_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/googletest/v1.15.2)
-option(INSTALL_GTEST "" OFF)
-option(BUILD_GMOCK "" OFF)
-add_subdirectory(${YAE_gtest_SOURCES} yae_modules/google/googletest/v1.15.2 SYSTEM)
-
-# https://github.com/Sunday111/EverydayTools main
-set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools/main)
-option(EDT_WITH_TESTS "" ON)
-option(EDT_FETCH_GOOGLE_TESTS "" OFF)
-option(EDT_FIND_GTEST_PACKAGE "" OFF)
-add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/EverydayTools/main SYSTEM)
+set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools/main/modules/edt)
+add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/EverydayTools/main/modules/edt SYSTEM)
 
 # https://github.com/Sunday111/ass main
 set(YAE_ass_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/ass/main)
@@ -135,6 +125,12 @@ option(BENCHMARK_ENABLE_TESTING "" OFF)
 add_subdirectory(${YAE_gbench_SOURCES} yae_modules/google/benchmark/v1.9.4 SYSTEM)
 
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/third_party/gbench.module.cmake)
+# https://github.com/google/googletest v1.15.2
+set(YAE_gtest_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/googletest/v1.15.2)
+option(INSTALL_GTEST "" OFF)
+option(BUILD_GMOCK "" OFF)
+add_subdirectory(${YAE_gtest_SOURCES} yae_modules/google/googletest/v1.15.2 SYSTEM)
+
 set(YAE_yae_example_benchmark_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/examples/yae_example_benchmark)
 add_subdirectory(${YAE_yae_example_benchmark_SOURCES} yae_modules/Sunday111/yae-support/main/modules/examples/yae_example_benchmark SYSTEM)
 
@@ -155,9 +151,6 @@ add_subdirectory(${YAE_yae_example_tests_SOURCES} yae_modules/Sunday111/yae-supp
 
 set(YAE_yae_example_tests_main_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/examples/yae_example_tests_main)
 add_subdirectory(${YAE_yae_example_tests_main_SOURCES} yae_modules/Sunday111/yae-support/main/modules/examples/yae_example_tests_main SYSTEM)
-
-set(YAE_CppReflectionTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/main/modules/CppReflectionTests)
-add_subdirectory(${YAE_CppReflectionTests_SOURCES} yae_modules/Sunday111/CppReflection/main/modules/CppReflectionTests SYSTEM)
 
 set(YAE_klvk_compute_shader_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/compute_shader)
 add_subdirectory(${YAE_klvk_compute_shader_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/compute_shader SYSTEM)
@@ -218,6 +211,12 @@ add_subdirectory(${YAE_klvk_two_textures_example_SOURCES} yae_modules/Sunday111/
 
 set(YAE_imgui_glfw_cmake_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/imgui_glfw_cmake/yae)
 add_subdirectory(${YAE_imgui_glfw_cmake_SOURCES} yae_modules/Sunday111/imgui_glfw_cmake/yae SYSTEM)
+
+set(YAE_CppReflectionTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/main/modules/CppReflectionTests)
+add_subdirectory(${YAE_CppReflectionTests_SOURCES} yae_modules/Sunday111/CppReflection/main/modules/CppReflectionTests SYSTEM)
+
+set(YAE_EverydayToolsTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools/main/modules/EverydayToolsTests)
+add_subdirectory(${YAE_EverydayToolsTests_SOURCES} yae_modules/Sunday111/EverydayTools/main/modules/EverydayToolsTests SYSTEM)
 
 
 enable_testing()
