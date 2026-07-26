@@ -61,8 +61,8 @@ option(ASS_ENABLE_TESTING "" ON)
 option(ASS_FETCH_GOOGLE_TESTS "" OFF)
 add_subdirectory(${YAE_ass_SOURCES} yae_modules/Sunday111/ass/main SYSTEM)
 
-set(YAE_CppReflection_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/for_yae/modules/CppReflection)
-add_subdirectory(${YAE_CppReflection_SOURCES} yae_modules/Sunday111/CppReflection/for_yae/modules/CppReflection SYSTEM)
+set(YAE_CppReflection_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/main/modules/CppReflection)
+add_subdirectory(${YAE_CppReflection_SOURCES} yae_modules/Sunday111/CppReflection/main/modules/CppReflection SYSTEM)
 
 # https://github.com/jeremy-rifkin/cpptrace main
 set(YAE_cpptrace_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/jeremy-rifkin/cpptrace/main)
@@ -129,21 +129,12 @@ set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/src/verlet_cuda/add_cuda.cmake)
-set(YAE_ecs_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/examples/ecs)
-add_subdirectory(${YAE_ecs_SOURCES} yae_modules/Sunday111/yae-support/main/modules/examples/ecs SYSTEM)
-
 # https://github.com/google/benchmark v1.9.4
-set(YAE_gbench_main_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/benchmark/v1.9.4)
+set(YAE_gbench_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/benchmark/v1.9.4)
 option(BENCHMARK_ENABLE_TESTING "" OFF)
-add_subdirectory(${YAE_gbench_main_SOURCES} yae_modules/google/benchmark/v1.9.4 SYSTEM)
+add_subdirectory(${YAE_gbench_SOURCES} yae_modules/google/benchmark/v1.9.4 SYSTEM)
 
-include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/third_party/gbench_main.module.cmake)
-set(YAE_ecs_benchmark_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/examples/ecs_benchmark)
-add_subdirectory(${YAE_ecs_benchmark_SOURCES} yae_modules/Sunday111/yae-support/main/modules/examples/ecs_benchmark SYSTEM)
-
-set(YAE_ecs_tests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/examples/ecs_tests)
-add_subdirectory(${YAE_ecs_tests_SOURCES} yae_modules/Sunday111/yae-support/main/modules/examples/ecs_tests SYSTEM)
-
+include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/third_party/gbench.module.cmake)
 set(YAE_yae_example_benchmark_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/examples/yae_example_benchmark)
 add_subdirectory(${YAE_yae_example_benchmark_SOURCES} yae_modules/Sunday111/yae-support/main/modules/examples/yae_example_benchmark SYSTEM)
 
@@ -165,8 +156,8 @@ add_subdirectory(${YAE_yae_example_tests_SOURCES} yae_modules/Sunday111/yae-supp
 set(YAE_yae_example_tests_main_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/examples/yae_example_tests_main)
 add_subdirectory(${YAE_yae_example_tests_main_SOURCES} yae_modules/Sunday111/yae-support/main/modules/examples/yae_example_tests_main SYSTEM)
 
-set(YAE_CppReflectionTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/for_yae/modules/CppReflectionTests)
-add_subdirectory(${YAE_CppReflectionTests_SOURCES} yae_modules/Sunday111/CppReflection/for_yae/modules/CppReflectionTests SYSTEM)
+set(YAE_CppReflectionTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/main/modules/CppReflectionTests)
+add_subdirectory(${YAE_CppReflectionTests_SOURCES} yae_modules/Sunday111/CppReflection/main/modules/CppReflectionTests SYSTEM)
 
 set(YAE_klvk_compute_shader_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/compute_shader)
 add_subdirectory(${YAE_klvk_compute_shader_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/compute_shader SYSTEM)
