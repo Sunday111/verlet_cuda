@@ -3,6 +3,12 @@
     "dependencies": {
         "packages": [
             {
+                "link": "https://github.com/Sunday111/EverydayTools main",
+                "packages": [
+                    "EverydayTools"
+                ]
+            },
+            {
                 "link": "https://github.com/Sunday111/klvk main",
                 "packages": [
                     "klvk"
