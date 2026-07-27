@@ -42,17 +42,14 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(YAE_fmtlib_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/fmtlib/fmt/11.1.1)
 add_subdirectory(${YAE_fmtlib_SOURCES} yae_modules/fmtlib/fmt/11.1.1 SYSTEM)
 
-set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools/main/modules/edt)
-add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/EverydayTools/main/modules/edt SYSTEM)
+set(YAE_edt_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/edt/main/modules/edt)
+add_subdirectory(${YAE_edt_SOURCES} yae_modules/Sunday111/edt/main/modules/edt SYSTEM)
 
-# https://github.com/Sunday111/ass main
-set(YAE_ass_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/ass/main)
-option(ASS_ENABLE_TESTING "" ON)
-option(ASS_FETCH_GOOGLE_TESTS "" OFF)
-add_subdirectory(${YAE_ass_SOURCES} yae_modules/Sunday111/ass/main SYSTEM)
+set(YAE_ass_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/ass/main/modules/ass)
+add_subdirectory(${YAE_ass_SOURCES} yae_modules/Sunday111/ass/main/modules/ass SYSTEM)
 
-set(YAE_CppReflection_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/main/modules/CppReflection)
-add_subdirectory(${YAE_CppReflection_SOURCES} yae_modules/Sunday111/CppReflection/main/modules/CppReflection SYSTEM)
+set(YAE_refl_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/refl/main/modules/refl)
+add_subdirectory(${YAE_refl_SOURCES} yae_modules/Sunday111/refl/main/modules/refl SYSTEM)
 
 # https://github.com/jeremy-rifkin/cpptrace main
 set(YAE_cpptrace_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/jeremy-rifkin/cpptrace/main)
@@ -212,11 +209,14 @@ add_subdirectory(${YAE_klvk_two_textures_example_SOURCES} yae_modules/Sunday111/
 set(YAE_imgui_glfw_cmake_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/imgui_glfw_cmake/yae)
 add_subdirectory(${YAE_imgui_glfw_cmake_SOURCES} yae_modules/Sunday111/imgui_glfw_cmake/yae SYSTEM)
 
-set(YAE_CppReflectionTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/CppReflection/main/modules/CppReflectionTests)
-add_subdirectory(${YAE_CppReflectionTests_SOURCES} yae_modules/Sunday111/CppReflection/main/modules/CppReflectionTests SYSTEM)
+set(YAE_refl_tests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/refl/main/modules/refl_tests)
+add_subdirectory(${YAE_refl_tests_SOURCES} yae_modules/Sunday111/refl/main/modules/refl_tests SYSTEM)
 
-set(YAE_EverydayToolsTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/EverydayTools/main/modules/EverydayToolsTests)
-add_subdirectory(${YAE_EverydayToolsTests_SOURCES} yae_modules/Sunday111/EverydayTools/main/modules/EverydayToolsTests SYSTEM)
+set(YAE_edt_tests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/edt/main/modules/edt_tests)
+add_subdirectory(${YAE_edt_tests_SOURCES} yae_modules/Sunday111/edt/main/modules/edt_tests SYSTEM)
+
+set(YAE_AssTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/ass/main/modules/AssTests)
+add_subdirectory(${YAE_AssTests_SOURCES} yae_modules/Sunday111/ass/main/modules/AssTests SYSTEM)
 
 
 enable_testing()
