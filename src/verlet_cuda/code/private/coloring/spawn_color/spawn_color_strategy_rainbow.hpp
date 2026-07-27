@@ -9,9 +9,9 @@ class SpawnColorStrategyRainbow : public SpawnColorStrategy
 public:
     using SpawnColorStrategy::SpawnColorStrategy;
     [[nodiscard]] ObjectColorFunction GetColorFunction() override;
-    [[nodiscard]] const cppreflection::Type& GetType() const override
+    [[nodiscard]] const refl::Type& GetType() const override
     {
-        return *cppreflection::GetTypeInfo<SpawnColorStrategyRainbow>();
+        return *refl::GetTypeInfo<SpawnColorStrategyRainbow>();
     }
     void DrawGUI() override;
 
@@ -21,7 +21,7 @@ private:
 };
 }  // namespace verlet
 
-namespace cppreflection
+namespace refl
 {
 
 template <>
@@ -29,10 +29,10 @@ struct TypeReflectionProvider<verlet::SpawnColorStrategyRainbow>
 {
     [[nodiscard]] inline constexpr static auto ReflectType()
     {
-        return cppreflection::StaticClassTypeInfo<verlet::SpawnColorStrategyRainbow>(
+        return refl::StaticClassTypeInfo<verlet::SpawnColorStrategyRainbow>(
             "verlet::SpawnColorStrategyRainbow ",
             edt::GUID::Create("B1EFD067-A712-4EB3-91E3-70003B18B5F4"));
     }
 };
 
-}  // namespace cppreflection
+}  // namespace refl
