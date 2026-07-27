@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "EverydayTools/Math/Math.hpp"
+#include "edt/math/math.hpp"
 #include "coloring/spawn_color/spawn_color_strategy.hpp"
 #include "constants.hpp"
 #include "klvk/ui/simple_type_widget.hpp"

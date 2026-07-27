@@ -2,8 +2,8 @@
 
 #include <fmt/chrono.h>
 
-#include <EverydayTools/Math/FloatRange.hpp>
-#include <EverydayTools/Math/Math.hpp>
+#include <edt/math/float_range.hpp>
+#include <edt/math/math.hpp>
 
 #include "cuda_util.hpp"
 #include "imgui.h"

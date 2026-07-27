@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 
-#include "EverydayTools/Math/Matrix.hpp"
+#include "edt/math/matrix.hpp"
 
 namespace verlet
 {

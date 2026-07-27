@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "EverydayTools/Math/Math.hpp"
+#include "edt/math/math.hpp"
 #include "kernels.hpp"
 
 namespace verlet::kernels_impl

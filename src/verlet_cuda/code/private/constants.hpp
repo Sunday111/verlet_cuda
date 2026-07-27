@@ -1,7 +1,7 @@
 #pragma once
 
-#include "EverydayTools/Math/FloatRange.hpp"
-#include "EverydayTools/Math/Matrix.hpp"
+#include "edt/math/float_range.hpp"
+#include "edt/math/matrix.hpp"
 #include "device_types.h"
 
 namespace verlet
