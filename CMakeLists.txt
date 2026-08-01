@@ -58,11 +58,6 @@ add_subdirectory(${YAE_refl_SOURCES} yae_modules/Sunday111/refl/main/modules/ref
 set(YAE_cpptrace_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/jeremy-rifkin/cpptrace/main)
 add_subdirectory(${YAE_cpptrace_SOURCES} yae_modules/jeremy-rifkin/cpptrace/main SYSTEM)
 
-# https://github.com/TartanLlama/expected v1.1.0
-set(YAE_expected_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/TartanLlama/expected/v1.1.0)
-option(EXPECTED_BUILD_TESTS "" OFF)
-add_subdirectory(${YAE_expected_SOURCES} yae_modules/TartanLlama/expected/v1.1.0 SYSTEM)
-
 # https://github.com/Neargye/magic_enum v0.9.7
 set(YAE_magic_enum_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Neargye/magic_enum/v0.9.7)
 add_subdirectory(${YAE_magic_enum_SOURCES} yae_modules/Neargye/magic_enum/v0.9.7 SYSTEM)
