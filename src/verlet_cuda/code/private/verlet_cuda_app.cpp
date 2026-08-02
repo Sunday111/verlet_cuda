@@ -308,20 +308,32 @@ void VerletCudaApp::Tick()
             {
                 CheckResult(
                     cudaMemsetAsync(grid_cells_.get(), 255, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_));
-                Kernels::PopulateGrid(cuda_stream_, grid_cells_.get(), device_objects.data(), device_objects.size());
+                CheckResult(
+                    Kernels::PopulateGrid(
+                        cuda_stream_,
+                        grid_cells_.get(),
+                        device_objects.data(),
+                        device_objects.size()),
+                    "PopulateGrid launch");
 
                 for (size_t offset_y = 0; offset_y != 3; ++offset_y)
                 {
                     for (size_t offset_x = 0; offset_x != 3; ++offset_x)
                     {
-                        Kernels::SolveCollisions(
-                            cuda_stream_,
-                            grid_cells_.get(),
-                            device_objects.data(),
-                            {offset_x, offset_y});
+                        CheckResult(
+                            Kernels::SolveCollisions(
+                                cuda_stream_,
+                                grid_cells_.get(),
+                                device_objects.data(),
+                                {offset_x, offset_y}),
+                            "SolveCollisions launch at offset ({}, {})",
+                            offset_x,
+                            offset_y);
                     }
                 }
-                Kernels::UpdatePositions(cuda_stream_, used_objects_count_, device_objects.data());
+                CheckResult(
+                    Kernels::UpdatePositions(cuda_stream_, used_objects_count_, device_objects.data()),
+                    "UpdatePositions launch");
             }
 
             cudaStreamSynchronize(cuda_stream_);

@@ -34,9 +34,14 @@ public:
 class Kernels
 {
 public:
-    static void ClearGrid(cudaStream_t& stream, GridCell* cells);
-    static void PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects);
-    static void SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset);
-    static void UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects);
+    // Return the launch status instead of reporting it here: this header is also included by
+    // kernels.cu, which is compiled against a different standard library than the rest of the
+    // project, so only trivial types may cross the boundary.
+    [[nodiscard]] static cudaError_t
+    PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects);
+    [[nodiscard]] static cudaError_t
+    SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset);
+    [[nodiscard]] static cudaError_t
+    UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects);
 };
 }  // namespace verlet

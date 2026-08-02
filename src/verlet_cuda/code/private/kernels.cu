@@ -157,32 +157,29 @@ __global__ void UpdatePositions(size_t num_objects, VerletObject* objects)
 namespace verlet
 {
 
-void Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects)
+cudaError_t Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects)
 {
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
     kernels_impl::PopulateGrid<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects, num_objects);
-    [[maybe_unused]] const cudaError_t err = cudaGetLastError();
-    assert(err == cudaSuccess);
+    return cudaGetLastError();
 }
 
-void Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset)
+cudaError_t Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset)
 {
     const auto sparse_grid_size = kernels_impl::GetChunkSize2D(constants::kGridSize - 2, {3, 3}, offset);
     const size_t num_jobs = sparse_grid_size.x() * sparse_grid_size.y();
     const uint32_t threads_per_block = 1024;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
     kernels_impl::SolveCollisions_ManyRows<<<num_blocks, threads_per_block, 0, stream>>>(offset, cells, objects);
-    [[maybe_unused]] const cudaError_t err = cudaGetLastError();
-    assert(err == cudaSuccess);
+    return cudaGetLastError();
 }
 
-void Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects)
+cudaError_t Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects)
 {
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
     kernels_impl::UpdatePositions<<<num_blocks, threads_per_block, 0, stream>>>(num_objects, objects);
-    [[maybe_unused]] const cudaError_t err = cudaGetLastError();
-    assert(err == cudaSuccess);
+    return cudaGetLastError();
 }
 }  // namespace verlet
