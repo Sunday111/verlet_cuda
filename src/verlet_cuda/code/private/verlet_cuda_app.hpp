@@ -41,7 +41,7 @@ public:
     void Tick() override;
     void AddObject(const VerletObject& object)
     {
-        if ((used_objects_count_ + pending_objects_.size()) < GetMaxObjectsCount())
+        if (GetRemainingObjectCapacity() != 0)
         {
             pending_objects_.push_back(object);
         }
@@ -49,6 +49,11 @@ public:
 
     [[nodiscard]] size_t GetMaxObjectsCount() const { return 1'500'000; }
     [[nodiscard]] size_t GetObjectsCount() const { return used_objects_count_; }
+    [[nodiscard]] size_t GetRemainingObjectCapacity() const
+    {
+        const size_t queued_objects_count = used_objects_count_ + pending_objects_.size();
+        return queued_objects_count < GetMaxObjectsCount() ? GetMaxObjectsCount() - queued_objects_count : 0;
+    }
     [[nodiscard]] SpawnColorStrategy& GetSpawnColorStrategy() const { return *spawn_color_strategy_; }
 
 private:

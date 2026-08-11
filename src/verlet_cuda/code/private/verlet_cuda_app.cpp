@@ -80,16 +80,19 @@ void VerletCudaApp::Initialize()
     CudaMemset(std::span{grid_cells_.get(), constants::kGridNumCells}, 0, cuda_stream_);
     cudaStreamSynchronize(cuda_stream_);
 
-    big_font_ = [&](float pixel_size)
+    big_font_ = [&](float font_scale)
     {
         ImGuiIO& io = ImGui::GetIO();
-        ImFontConfig config;
-        config.SizePixels = pixel_size;
+        const ImFont& default_font = *io.Fonts->Fonts.front();
+        ImFontConfig config{};
+        config.SizePixels = default_font.FontSize * font_scale;
         config.OversampleH = config.OversampleV = 1;
         config.PixelSnapH = true;
         ImFont* font = io.Fonts->AddFontDefault(&config);
+        klvk::ErrorHandling::Ensure(font != nullptr, "Failed to create object counter font");
+        font->Scale = default_font.Scale;
         return font;
-    }(45);
+    }(45.f / 13.f);
 
     do  // NOLINT
     {
@@ -231,9 +234,13 @@ void VerletCudaApp::OnMouseScroll(const klvk::events::OnMouseScroll& event)
 
 Vec2f VerletCudaApp::GetMousePositionInWorldCoordinates() const
 {
-    auto p = FromImVec(ImGui::GetMousePos());
-    p.y() = GetWindow().GetSize2f().y() - p.y();
-    return edt::Math::TransformPos(render_transforms_.screen_to_world, p);
+    const ImGuiIO& io = ImGui::GetIO();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const Vec2f framebuffer_scale{io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y};
+    const Vec2f viewport_position{viewport->Pos.x, viewport->Pos.y};
+    Vec2f screen_position = (FromImVec(ImGui::GetMousePos()) - viewport_position) * framebuffer_scale;
+    screen_position.y() = GetWindow().GetSize2f().y() - screen_position.y();
+    return edt::Math::TransformPos(render_transforms_.screen_to_world, screen_position);
 }
 
 void VerletCudaApp::DrawObjects()
