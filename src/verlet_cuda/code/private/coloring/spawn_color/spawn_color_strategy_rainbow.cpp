@@ -1,13 +1,16 @@
 #include "spawn_color_strategy_rainbow.hpp"
 
+#include "edt/math/math.hpp"
 #include "imgui.h"
+#include "klvk/ui/imgui_helpers.hpp"
 #include "verlet_cuda_app.hpp"
 
 namespace verlet
 {
 [[nodiscard]] ObjectColorFunction SpawnColorStrategyRainbow ::GetColorFunction()
 {
-    return [t = phase_ + frequency_ * GetApp().GetTimeSeconds()]([[maybe_unused]] const VerletObject& object)
+    return [t = edt::Math::DegToRad(phase_degrees_) +
+                frequency_ * GetApp().GetTimeSeconds()]([[maybe_unused]] const VerletObject& object)
     {
         auto rgb = edt::Math::GetRainbowColors(t);
         Vec4u8 c;
@@ -21,7 +24,8 @@ namespace verlet
 
 void SpawnColorStrategyRainbow::DrawGUI()
 {
-    ImGui::SliderFloat("Phase", &phase_, -10.f, 10.f);
-    ImGui::SliderFloat("Frequency", &frequency_, 0.f, 2.f);
+    klvk::ImGuiHelper::FiniteSliderFloat("Phase", phase_degrees_, 0.f, 180.f, "%.0f deg", ImGuiSliderFlags_AlwaysClamp);
+    klvk::ImGuiHelper::FiniteDragFloat("Frequency", frequency_, 0.05f, 0.f, 2.f, "%.2f rad/s");
+    frequency_ = std::max(frequency_, 0.f);
 }
 }  // namespace verlet

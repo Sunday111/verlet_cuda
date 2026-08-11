@@ -9,14 +9,11 @@ class SpawnColorStrategyRainbow : public SpawnColorStrategy
 public:
     using SpawnColorStrategy::SpawnColorStrategy;
     [[nodiscard]] ObjectColorFunction GetColorFunction() override;
-    [[nodiscard]] const refl::Type& GetType() const override
-    {
-        return *refl::GetTypeInfo<SpawnColorStrategyRainbow>();
-    }
+    [[nodiscard]] const refl::Type& GetType() const override { return *refl::GetTypeInfo<SpawnColorStrategyRainbow>(); }
     void DrawGUI() override;
 
 private:
-    float phase_ = 0.f;
+    float phase_degrees_ = 0.f;
     float frequency_ = 1.f;
 };
 }  // namespace verlet

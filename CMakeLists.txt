@@ -104,12 +104,26 @@ add_subdirectory(${YAE_spdlog_SOURCES} yae_modules/gabime/spdlog/v1.16.0 SYSTEM)
 # binary dependency slang (linux-x86_64)
 find_package(slang CONFIG REQUIRED PATHS ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-slang/v2026.14/.prebuilt/linux-x86_64 NO_DEFAULT_PATH)
 
+# https://github.com/freetype/freetype VER-2-13-3
+set(YAE_freetype_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/freetype/freetype/VER-2-13-3)
+option(FT_DISABLE_HARFBUZZ "" ON)
+option(FT_DISABLE_BROTLI "" ON)
+option(FT_DISABLE_PNG "" ON)
+option(FT_DISABLE_BZIP2 "" ON)
+option(FT_DISABLE_ZLIB "" ON)
+add_subdirectory(${YAE_freetype_SOURCES} yae_modules/freetype/freetype/VER-2-13-3 SYSTEM)
+
+# https://github.com/nothings/stb master
+set(YAE_stb_sources_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/nothings/stb/master)
+set(YAE_stb_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/stb)
+add_subdirectory(${YAE_stb_SOURCES} yae_modules/Sunday111/klvk/main/stb SYSTEM)
+
 set(YAE_klvk_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk)
 add_subdirectory(${YAE_klvk_SOURCES} yae_modules/Sunday111/klvk/main/klvk SYSTEM)
 
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/ffmpeg.cmake)
-include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/shader_cache.cmake)
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/vulkan_api.cmake)
+include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/warnings.cmake)
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
 
@@ -192,8 +206,14 @@ add_subdirectory(${YAE_klvk_shader_cache_test_SOURCES} yae_modules/Sunday111/klv
 set(YAE_klvk_simple_lit_cube_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/simple_lit_cube)
 add_subdirectory(${YAE_klvk_simple_lit_cube_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/simple_lit_cube SYSTEM)
 
+set(YAE_klvk_stencil_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/stencil)
+add_subdirectory(${YAE_klvk_stencil_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/stencil SYSTEM)
+
 set(YAE_klvk_tetris_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/tetris)
 add_subdirectory(${YAE_klvk_tetris_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/tetris SYSTEM)
+
+set(YAE_klvk_text_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/examples/text)
+add_subdirectory(${YAE_klvk_text_example_SOURCES} yae_modules/Sunday111/klvk/main/klvk/examples/text SYSTEM)
 
 set(YAE_klvk_textured_quad_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/textured_quad)
 add_subdirectory(${YAE_klvk_textured_quad_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/textured_quad SYSTEM)
