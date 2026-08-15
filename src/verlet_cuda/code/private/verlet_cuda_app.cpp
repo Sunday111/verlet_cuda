@@ -104,8 +104,6 @@ void VerletCudaApp::CreateCircleMaskTexture()
 void VerletCudaApp::CreatePipeline()
 {
     klvk::DeviceContext& context = GetDeviceContext();
-    const vk::Device device = context.GetDevice();
-
     descriptor_sets_ = klvk::DescriptorSets::Builder(context)
                            .Binding(0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
                            .Build(1);
@@ -120,18 +118,16 @@ void VerletCudaApp::CreatePipeline()
 
     // The CUDA-written objects buffer is bound as an instance-rate vertex buffer, so the
     // shader reads exactly the memory the kernels wrote.
-    pipeline_ = klvk::VulkanObject<vk::Pipeline>{
-        device,
-        klvk::GraphicsPipelineBuilder(*this)
-            .Layout(pipeline_layout_)
-            .VertexShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.vert.slang")
-            .FragmentShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.frag.slang")
-            .VertexBinding(0, sizeof(VerletObject), vk::VertexInputRate::eInstance)
-            .VertexAttribute(0, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, position))
-            .VertexAttribute(1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(VerletObject, color))
-            .VertexAttribute(2, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, scale))
-            .AlphaBlend()
-            .Build()};
+    pipeline_ = klvk::GraphicsPipelineBuilder(*this)
+                    .Layout(pipeline_layout_)
+                    .VertexShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.vert.slang")
+                    .FragmentShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.frag.slang")
+                    .VertexBinding(0, sizeof(VerletObject), vk::VertexInputRate::eInstance)
+                    .VertexAttribute(0, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, position))
+                    .VertexAttribute(1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(VerletObject, color))
+                    .VertexAttribute(2, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, scale))
+                    .AlphaBlend()
+                    .Build();
 }
 
 std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_size)
@@ -239,7 +235,7 @@ void VerletCudaApp::DrawObjects()
 
     const vk::CommandBuffer command_buffer = GetCurrentCommandBuffer();
     const std::array descriptor_sets{descriptor_sets_.Get(0)};
-    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline_);
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline_.get());
     command_buffer
         .bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout_.GetHandle(), 0, descriptor_sets, {});
 
