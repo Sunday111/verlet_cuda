@@ -74,10 +74,6 @@ add_subdirectory(${YAE_nlohmann_json_SOURCES} yae_modules/nlohmann/json/develop 
 set(YAE_vulkan_headers_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/KhronosGroup/Vulkan-Headers/vulkan-sdk-1.4.350.1)
 add_subdirectory(${YAE_vulkan_headers_SOURCES} yae_modules/KhronosGroup/Vulkan-Headers/vulkan-sdk-1.4.350.1 SYSTEM)
 
-# https://github.com/zeux/volk vulkan-sdk-1.4.350.1
-set(YAE_volk_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/zeux/volk/vulkan-sdk-1.4.350.1)
-add_subdirectory(${YAE_volk_SOURCES} yae_modules/zeux/volk/vulkan-sdk-1.4.350.1 SYSTEM)
-
 # https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator v3.4.0
 set(YAE_vma_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/v3.4.0)
 add_subdirectory(${YAE_vma_SOURCES} yae_modules/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/v3.4.0 SYSTEM)
@@ -122,7 +118,7 @@ set(YAE_klvk_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk)
 add_subdirectory(${YAE_klvk_SOURCES} yae_modules/Sunday111/klvk/main/klvk SYSTEM)
 
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/ffmpeg.cmake)
-include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/vulkan_api.cmake)
+include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/vulkan_hpp.cmake)
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/warnings.cmake)
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
@@ -223,6 +219,9 @@ add_subdirectory(${YAE_klvk_timer_manager_test_SOURCES} yae_modules/Sunday111/kl
 
 set(YAE_klvk_two_textures_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/two_textures)
 add_subdirectory(${YAE_klvk_two_textures_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/two_textures SYSTEM)
+
+set(YAE_klvk_vulkan_hpp_test_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/tests/vulkan_hpp)
+add_subdirectory(${YAE_klvk_vulkan_hpp_test_SOURCES} yae_modules/Sunday111/klvk/main/tests/vulkan_hpp SYSTEM)
 
 set(YAE_imgui_glfw_cmake_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/imgui_glfw_cmake/yae)
 add_subdirectory(${YAE_imgui_glfw_cmake_SOURCES} yae_modules/Sunday111/imgui_glfw_cmake/yae SYSTEM)

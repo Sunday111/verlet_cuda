@@ -11,13 +11,6 @@
 #include "klvk/texture/procedural_texture_generator.hpp"
 #include "klvk/vulkan/device_context.hpp"
 #include "klvk/vulkan/graphics_pipeline_builder.hpp"
-#include "klvk/vulkan/vulkan_api.hpp"
-
-// Vulkan create-info structs are designed for partial designated initialization;
-// unlisted fields must be zero.
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
-#endif
 
 namespace verlet
 {
@@ -111,35 +104,32 @@ void VerletCudaApp::CreateCircleMaskTexture()
 void VerletCudaApp::CreatePipeline()
 {
     klvk::DeviceContext& context = GetDeviceContext();
-    const VkDevice device = context.GetDevice();
+    const vk::Device device = context.GetDevice();
 
     descriptor_sets_ = klvk::DescriptorSets::Builder(context)
-                           .Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                           .Binding(0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
                            .Build(1);
     descriptor_sets_.WriteImage(0, 0, texture_->GetView(), texture_->GetSampler());
 
     {
-        const std::array push_constant_ranges{VkPushConstantRange{
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-            .offset = 0,
-            .size = sizeof(PushConstants),
-        }};
+        const std::array push_constant_ranges{
+            vk::PushConstantRange{}.setStageFlags(vk::ShaderStageFlagBits::eVertex).setSize(sizeof(PushConstants))};
         const std::array set_layouts{descriptor_sets_.GetLayoutView()};
         pipeline_layout_ = klvk::PipelineLayout{context, set_layouts, push_constant_ranges};
     }
 
     // The CUDA-written objects buffer is bound as an instance-rate vertex buffer, so the
     // shader reads exactly the memory the kernels wrote.
-    pipeline_ = klvk::VkObject<VkPipeline>{
+    pipeline_ = klvk::VulkanObject<vk::Pipeline>{
         device,
         klvk::GraphicsPipelineBuilder(*this)
             .Layout(pipeline_layout_)
             .VertexShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.vert.slang")
             .FragmentShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.frag.slang")
-            .VertexBinding(0, sizeof(VerletObject), VK_VERTEX_INPUT_RATE_INSTANCE)
-            .VertexAttribute(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(VerletObject, position))
-            .VertexAttribute(1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(VerletObject, color))
-            .VertexAttribute(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(VerletObject, scale))
+            .VertexBinding(0, sizeof(VerletObject), vk::VertexInputRate::eInstance)
+            .VertexAttribute(0, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, position))
+            .VertexAttribute(1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(VerletObject, color))
+            .VertexAttribute(2, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, scale))
             .AlphaBlend()
             .Build()};
 }
@@ -247,19 +237,15 @@ void VerletCudaApp::DrawObjects()
 {
     if (used_objects_count_ == 0) return;
 
-    const VkCommandBuffer command_buffer = GetCurrentCommandBuffer();
+    const vk::CommandBuffer command_buffer = GetCurrentCommandBuffer();
     const std::array descriptor_sets{descriptor_sets_.Get(0)};
-    klvk::Vulkan::CmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
-    klvk::Vulkan::CmdBindDescriptorSets(
-        command_buffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline_layout_.GetHandle(),
-        0,
-        descriptor_sets);
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline_);
+    command_buffer
+        .bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout_.GetHandle(), 0, descriptor_sets, {});
 
     const std::array vertex_buffers{objects_buffer_.GetHandle()};
-    const std::array<VkDeviceSize, 1> offsets{0};
-    klvk::Vulkan::CmdBindVertexBuffers(command_buffer, 0, vertex_buffers, offsets);
+    const std::array<vk::DeviceSize, 1> offsets{0};
+    command_buffer.bindVertexBuffers(0, vertex_buffers, offsets);
 
     // The shader constructs the mat3 from columns.
     PushConstants push_constants{};
@@ -268,14 +254,14 @@ void VerletCudaApp::DrawObjects()
         const Vec3f matrix_column = render_transforms_.world_to_view.GetColumn(column);
         push_constants.columns.at(column) = Vec4f{matrix_column.x(), matrix_column.y(), matrix_column.z(), 0.f};
     }
-    klvk::Vulkan::CmdPushConstants(
-        command_buffer,
+    command_buffer.pushConstants(
         pipeline_layout_.GetHandle(),
-        VK_SHADER_STAGE_VERTEX_BIT,
+        vk::ShaderStageFlagBits::eVertex,
         0,
-        push_constants);
+        sizeof(push_constants),
+        &push_constants);
 
-    klvk::Vulkan::CmdDraw(command_buffer, 6, static_cast<uint32_t>(used_objects_count_), 0, 0);
+    command_buffer.draw(6, static_cast<uint32_t>(used_objects_count_), 0, 0);
 }
 
 void VerletCudaApp::Tick()
@@ -286,13 +272,13 @@ void VerletCudaApp::Tick()
 
     // CUDA and Vulkan share the objects buffer but are not synchronized through external
     // semaphores here, so frames still in flight could be reading it while the kernels
-    // write. Growing the buffer also destroys the old VkBuffer. Going idle first covers
+    // write. Growing the buffer also destroys the old Vulkan buffer. Going idle first covers
     // both, at the cost of the frame overlap the OpenGL version got from the driver.
     GetDeviceContext().WaitIdle();
 
     // Objects queued during the previous tick become visible now. This ran at the end of
     // the tick under OpenGL; it has to happen before the draw is recorded because a
-    // reallocation swaps the VkBuffer the draw would reference.
+    // reallocation swaps the Vulkan buffer the draw would reference.
     SpawnPendingObjects();
 
     // Do simulation substeps

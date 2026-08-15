@@ -43,7 +43,7 @@ static void CheckResult(cudaError_t result, fmt::format_string<Args...> format_s
 
 // A buffer that Vulkan and CUDA both address: the Vulkan allocation is exported as an
 // opaque fd and imported by CUDA, so kernels write the objects in place and the very
-// same VkBuffer is bound as the instance vertex buffer - no copies between the APIs.
+// same Vulkan buffer is bound as the instance vertex buffer - no copies between the APIs.
 //
 // This replaces the cudaGraphicsGLRegisterBuffer path used with OpenGL. Unlike the GL
 // interop there is no map/unmap: the device pointer stays valid for the buffer's lifetime.
@@ -58,11 +58,11 @@ public:
     CudaVkBuffer& operator=(CudaVkBuffer&& other) noexcept;
     ~CudaVkBuffer();
 
-    [[nodiscard]] bool IsValid() const noexcept { return buffer_ != VK_NULL_HANDLE; }
-    [[nodiscard]] VkBuffer GetHandle() const noexcept { return buffer_; }
+    [[nodiscard]] bool IsValid() const noexcept { return buffer_ != nullptr; }
+    [[nodiscard]] vk::Buffer GetHandle() const noexcept { return buffer_; }
     [[nodiscard]] size_t GetSize() const noexcept { return size_; }
 
-    // Device pointer to the same memory the VkBuffer is bound to.
+    // Device pointer to the same memory the Vulkan buffer is bound to.
     template <typename T>
     [[nodiscard]] std::span<T> GetDeviceSpan() const
     {
@@ -78,8 +78,8 @@ private:
     void Destroy() noexcept;
 
     klvk::DeviceContext* context_ = nullptr;
-    VkBuffer buffer_ = VK_NULL_HANDLE;
-    VkDeviceMemory memory_ = VK_NULL_HANDLE;
+    vk::Buffer buffer_ = nullptr;
+    vk::DeviceMemory memory_ = nullptr;
     cudaExternalMemory_t external_memory_{};
     void* device_ptr_ = nullptr;
     size_t size_ = 0;
