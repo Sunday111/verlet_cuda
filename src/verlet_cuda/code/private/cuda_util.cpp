@@ -1,9 +1,11 @@
 #include "cuda_util.hpp"
 
 #include <cuda_runtime.h>
+#include <unistd.h>
 
 #include <utility>
 
+#include "edt/functional/on_scope_leave.hpp"
 #include "klvk/vulkan/device_context.hpp"
 #include "klvk/vulkan/vulkan_common.hpp"
 
@@ -42,9 +44,9 @@ CudaVkBuffer::CudaVkBuffer(klvk::DeviceContext& context, size_t bytes) : context
         .setSize(bytes)
         .setUsage(vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst)
         .setSharingMode(vk::SharingMode::eExclusive);
-    buffer_ = device.createBuffer(buffer_chain.get<vk::BufferCreateInfo>());
+    vk::UniqueBuffer buffer = device.createBufferUnique(buffer_chain.get<vk::BufferCreateInfo>());
 
-    const vk::MemoryRequirements requirements = device.getBufferMemoryRequirements(buffer_);
+    const vk::MemoryRequirements requirements = device.getBufferMemoryRequirements(buffer.get());
 
     // NVIDIA wants interop allocations dedicated to the resource; CUDA is told the same
     // below through cudaExternalMemoryDedicated.
@@ -52,19 +54,24 @@ CudaVkBuffer::CudaVkBuffer(klvk::DeviceContext& context, size_t bytes) : context
         allocation_chain;
     allocation_chain.get<vk::ExportMemoryAllocateInfo>().setHandleTypes(
         vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
-    allocation_chain.get<vk::MemoryDedicatedAllocateInfo>().setBuffer(buffer_);
+    allocation_chain.get<vk::MemoryDedicatedAllocateInfo>().setBuffer(buffer.get());
     allocation_chain.get<vk::MemoryAllocateInfo>()
         .setAllocationSize(requirements.size)
         .setMemoryTypeIndex(FindMemoryType(
             context.GetPhysicalDevice(),
             requirements.memoryTypeBits,
             vk::MemoryPropertyFlagBits::eDeviceLocal));
-    memory_ = device.allocateMemory(allocation_chain.get<vk::MemoryAllocateInfo>());
-    device.bindBufferMemory(buffer_, memory_, 0);
+    vk::UniqueDeviceMemory memory = device.allocateMemoryUnique(allocation_chain.get<vk::MemoryAllocateInfo>());
+    device.bindBufferMemory(buffer.get(), memory.get(), 0);
 
     const vk::MemoryGetFdInfoKHR fd_info =
-        vk::MemoryGetFdInfoKHR{}.setMemory(memory_).setHandleType(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
-    const int fd = device.getMemoryFdKHR(fd_info);
+        vk::MemoryGetFdInfoKHR{}.setMemory(memory.get()).setHandleType(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+    int fd = device.getMemoryFdKHR(fd_info);
+    const auto close_fd = edt::OnScopeLeave(
+        [&]
+        {
+            if (fd != -1) ::close(fd);
+        });
 
     cudaExternalMemoryHandleDesc handle_desc{};
     handle_desc.type = cudaExternalMemoryHandleTypeOpaqueFd;
@@ -72,15 +79,31 @@ CudaVkBuffer::CudaVkBuffer(klvk::DeviceContext& context, size_t bytes) : context
     handle_desc.handle.fd = fd;  // NOLINT(cppcoreguidelines-pro-type-union-access)
     handle_desc.size = requirements.size;
     handle_desc.flags = cudaExternalMemoryDedicated;
-    // On success CUDA takes ownership of the fd and closes it itself, so it must not be
-    // closed here. On failure it stays leaked - but the throw below tears the app down anyway.
-    CheckResult(cudaImportExternalMemory(&external_memory_, &handle_desc));
+    cudaExternalMemory_t external_memory{};
+    CheckResult(cudaImportExternalMemory(&external_memory, &handle_desc));
+    fd = -1;
+    const auto destroy_external_memory = edt::OnScopeLeave(
+        [&]
+        {
+            if (external_memory) cudaDestroyExternalMemory(external_memory);
+        });
 
     cudaExternalMemoryBufferDesc buffer_desc{};
     buffer_desc.offset = 0;
     buffer_desc.size = bytes;
     buffer_desc.flags = 0;
-    CheckResult(cudaExternalMemoryGetMappedBuffer(&device_ptr_, external_memory_, &buffer_desc));
+    void* device_ptr = nullptr;
+    CheckResult(cudaExternalMemoryGetMappedBuffer(&device_ptr, external_memory, &buffer_desc));
+    const auto free_device_ptr = edt::OnScopeLeave(
+        [&]
+        {
+            if (device_ptr) cudaFree(device_ptr);
+        });
+
+    buffer_ = buffer.release();
+    memory_ = memory.release();
+    external_memory_ = std::exchange(external_memory, cudaExternalMemory_t{});
+    device_ptr_ = std::exchange(device_ptr, nullptr);
 }
 
 CudaVkBuffer::CudaVkBuffer(CudaVkBuffer&& other) noexcept
