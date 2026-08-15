@@ -42,7 +42,7 @@ CudaVkBuffer::CudaVkBuffer(klvk::DeviceContext& context, size_t bytes) : context
         .setSize(bytes)
         .setUsage(vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst)
         .setSharingMode(vk::SharingMode::eExclusive);
-    buffer_ = klvk::VulkanValue(device.createBuffer(buffer_chain.get<vk::BufferCreateInfo>()), "vkCreateBuffer");
+    buffer_ = device.createBuffer(buffer_chain.get<vk::BufferCreateInfo>());
 
     const vk::MemoryRequirements requirements = device.getBufferMemoryRequirements(buffer_);
 
@@ -59,13 +59,12 @@ CudaVkBuffer::CudaVkBuffer(klvk::DeviceContext& context, size_t bytes) : context
             context.GetPhysicalDevice(),
             requirements.memoryTypeBits,
             vk::MemoryPropertyFlagBits::eDeviceLocal));
-    memory_ =
-        klvk::VulkanValue(device.allocateMemory(allocation_chain.get<vk::MemoryAllocateInfo>()), "vkAllocateMemory");
-    klvk::VulkanValue(device.bindBufferMemory(buffer_, memory_, 0), "vkBindBufferMemory");
+    memory_ = device.allocateMemory(allocation_chain.get<vk::MemoryAllocateInfo>());
+    device.bindBufferMemory(buffer_, memory_, 0);
 
     const vk::MemoryGetFdInfoKHR fd_info =
         vk::MemoryGetFdInfoKHR{}.setMemory(memory_).setHandleType(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
-    const int fd = klvk::VulkanValue(device.getMemoryFdKHR(fd_info), "vkGetMemoryFdKHR");
+    const int fd = device.getMemoryFdKHR(fd_info);
 
     cudaExternalMemoryHandleDesc handle_desc{};
     handle_desc.type = cudaExternalMemoryHandleTypeOpaqueFd;

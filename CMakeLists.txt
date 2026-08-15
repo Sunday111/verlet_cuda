@@ -70,9 +70,21 @@ add_subdirectory(${YAE_unordered_dense_SOURCES} yae_modules/martinus/unordered_d
 set(YAE_nlohmann_json_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/nlohmann/json/develop)
 add_subdirectory(${YAE_nlohmann_json_SOURCES} yae_modules/nlohmann/json/develop SYSTEM)
 
-# https://github.com/KhronosGroup/Vulkan-Headers vulkan-sdk-1.4.350.1
-set(YAE_vulkan_headers_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/KhronosGroup/Vulkan-Headers/vulkan-sdk-1.4.350.1)
-add_subdirectory(${YAE_vulkan_headers_SOURCES} yae_modules/KhronosGroup/Vulkan-Headers/vulkan-sdk-1.4.350.1 SYSTEM)
+# https://github.com/KhronosGroup/Vulkan-Headers v1.4.359
+set(YAE_vulkan_headers_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/KhronosGroup/Vulkan-Headers/v1.4.359)
+add_subdirectory(${YAE_vulkan_headers_SOURCES} yae_modules/KhronosGroup/Vulkan-Headers/v1.4.359 SYSTEM)
+
+# https://github.com/Sunday111/Vulkan-Hpp cpptrace
+set(YAE_vulkan_hpp_sunday_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/Vulkan-Hpp/cpptrace)
+option(VULKAN_HPP_BUILD_CXX_MODULE "" OFF)
+option(VULKAN_HPP_BUILD_WITH_LOCAL_VULKAN_HPP "" ON)
+option(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC "" ON)
+option(VULKAN_HPP_GENERATOR_BUILD "" OFF)
+option(VULKAN_HPP_PRECOMPILE "" OFF)
+option(VULKAN_HPP_SAMPLES_BUILD "" OFF)
+option(VULKAN_HPP_TESTS_BUILD "" OFF)
+option(VULKAN_HPP_USE_CPPTRACE "" ON)
+add_subdirectory(${YAE_vulkan_hpp_sunday_SOURCES} yae_modules/Sunday111/Vulkan-Hpp/cpptrace SYSTEM)
 
 # https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator v3.4.0
 set(YAE_vma_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/v3.4.0)
@@ -118,7 +130,6 @@ set(YAE_klvk_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk)
 add_subdirectory(${YAE_klvk_SOURCES} yae_modules/Sunday111/klvk/main/klvk SYSTEM)
 
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/ffmpeg.cmake)
-include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/vulkan_hpp.cmake)
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/warnings.cmake)
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
