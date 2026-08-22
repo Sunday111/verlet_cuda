@@ -47,8 +47,8 @@ struct PushConstants
 
 VerletCudaApp::VerletCudaApp()
 {
-    event_listener_ = klvk::events::EventListenerMethodCallbacks<&VerletCudaApp::OnMouseScroll>::CreatePtr(this);
-    GetEventManager().AddEventListener(*event_listener_);
+    event_subscription_ = GetEventManager().AddEventListener(
+        klvk::events::EventListenerMethodCallbacks<&VerletCudaApp::OnMouseScroll>::CreatePtr(this));
     spawn_color_strategy_ = std::make_unique<SpawnColorStrategyRainbow>(*this);
 }
 
