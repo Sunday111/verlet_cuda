@@ -10,7 +10,7 @@
 #include "kernels.hpp"
 #include "klvk/application.hpp"
 #include "klvk/camera/camera_2d.hpp"
-#include "klvk/events/event_listener_interface.hpp"
+#include "klvk/events/event_manager.hpp"
 #include "klvk/events/mouse_events.hpp"
 #include "klvk/vulkan/descriptor_sets.hpp"
 #include "klvk/vulkan/pipeline_layout.hpp"
@@ -65,7 +65,7 @@ private:
 private:
     cudaStream_t cuda_stream_{};
 
-    std::unique_ptr<klvk::events::IEventListener> event_listener_;
+    klvk::events::EventSubscription event_subscription_;
     std::unique_ptr<SpawnColorStrategy> spawn_color_strategy_;
 
     float zoom_power_ = 0.f;
