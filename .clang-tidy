@@ -18,6 +18,7 @@ modernize-*,\
 -cppcoreguidelines-missing-std-forward,\
 -google-readability-avoid-underscore-in-googletest-name,\
 -cppcoreguidelines-avoid-do-while,\
+-cert-dcl03-c,\
 -cert-err58-cpp,\
 -cert-msc51-cpp,\
 -cert-msc32-c,\
