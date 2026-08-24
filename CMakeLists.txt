@@ -90,8 +90,8 @@ add_subdirectory(${YAE_vulkan_hpp_sunday_SOURCES} yae_modules/Sunday111/Vulkan-H
 set(YAE_vma_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/v3.4.0)
 add_subdirectory(${YAE_vma_SOURCES} yae_modules/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/v3.4.0 SYSTEM)
 
-# https://github.com/ocornut/imgui v1.90.9
-set(YAE_imgui_sources_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/ocornut/imgui/v1.90.9)
+# https://github.com/ocornut/imgui v1.91.8
+set(YAE_imgui_sources_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/ocornut/imgui/v1.91.8)
 # https://github.com/glfw/glfw master
 set(YAE_glfw_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/glfw/glfw/master)
 option(GLFW_BUILD_EXAMPLES "" OFF)
@@ -211,6 +211,9 @@ add_subdirectory(${YAE_klvk_painter2d_example_SOURCES} yae_modules/Sunday111/klv
 
 set(YAE_klvk_pendulum_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/pendulum)
 add_subdirectory(${YAE_klvk_pendulum_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/pendulum SYSTEM)
+
+set(YAE_klvk_perf_recorder_test_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/tests/perf_recorder)
+add_subdirectory(${YAE_klvk_perf_recorder_test_SOURCES} yae_modules/Sunday111/klvk/main/tests/perf_recorder SYSTEM)
 
 set(YAE_klvk_post_processing_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/post_processing)
 add_subdirectory(${YAE_klvk_post_processing_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/post_processing SYSTEM)
