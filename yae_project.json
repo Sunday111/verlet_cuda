@@ -12,19 +12,16 @@
             "verlet_cuda"
         ],
         "run_target": "verlet_cuda",
+        "yae-toolchain": {
+            "compiler": "clang",
+            "linker": "mold"
+        },
         "cmake_definitions": {
             "CMAKE_BUILD_TYPE": "Release",
-            "CMAKE_C_COMPILER": "clang",
-            "CMAKE_CXX_COMPILER": "clang++",
             "CMAKE_C_COMPILER_LAUNCHER": "ccache",
             "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
             "CMAKE_CUDA_COMPILER_LAUNCHER": "ccache",
-            "CMAKE_CUDA_COMPILER": "clang++",
-            "CMAKE_CUDA_ARCHITECTURES": "75",
-            "CMAKE_CUDA_FLAGS": "--cuda-include-ptx=sm_75",
-            "CMAKE_CXX_FLAGS": "-stdlib=libc++ -include cstdlib",
-            "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++",
-            "CPPTRACE_DISABLE_CXX_20_MODULES": "ON"
+            "CMAKE_CUDA_ARCHITECTURES": "75"
         }
     },
     "cpp": {
