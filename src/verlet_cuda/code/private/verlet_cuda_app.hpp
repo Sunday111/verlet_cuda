@@ -89,7 +89,5 @@ private:
 
     size_t reserved_objects_count_ = 0;
     size_t used_objects_count_ = 0;
-
-    ImFont* big_font_ = nullptr;
 };
 }  // namespace verlet
