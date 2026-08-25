@@ -54,8 +54,31 @@ add_subdirectory(${YAE_ass_SOURCES} yae_modules/Sunday111/ass/main/modules/ass S
 set(YAE_refl_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/refl/main/modules/refl)
 add_subdirectory(${YAE_refl_SOURCES} yae_modules/Sunday111/refl/main/modules/refl SYSTEM)
 
+# https://github.com/facebook/zstd v1.5.7
+set(YAE_zstd_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/facebook/zstd/v1.5.7)
+option(ZSTD_BUILD_PROGRAMS "" OFF)
+option(ZSTD_BUILD_CONTRIB "" OFF)
+option(ZSTD_BUILD_TESTS "" OFF)
+option(ZSTD_BUILD_STATIC "" ON)
+option(ZSTD_BUILD_SHARED "" OFF)
+option(ZSTD_LEGACY_SUPPORT "" OFF)
+add_subdirectory(${YAE_zstd_SOURCES}/build/cmake yae_modules/facebook/zstd/v1.5.7 SYSTEM)
+
+# https://github.com/davea42/libdwarf-code v2.1.0
+set(YAE_libdwarf_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/davea42/libdwarf-code/v2.1.0)
+option(BUILD_NON_SHARED "" ON)
+option(BUILD_SHARED "" OFF)
+option(BUILD_DWARFDUMP "" OFF)
+option(BUILD_DWARFGEN "" OFF)
+option(BUILD_DWARFEXAMPLE "" OFF)
+option(DO_TESTING "" OFF)
+option(PIC_ALWAYS "" ON)
+add_subdirectory(${YAE_libdwarf_SOURCES} yae_modules/davea42/libdwarf-code/v2.1.0 SYSTEM)
+
+include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/dependencies/Findlibdwarf.cmake)
 # https://github.com/jeremy-rifkin/cpptrace main
 set(YAE_cpptrace_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/jeremy-rifkin/cpptrace/main)
+option(CPPTRACE_USE_EXTERNAL_LIBDWARF "" ON)
 add_subdirectory(${YAE_cpptrace_SOURCES} yae_modules/jeremy-rifkin/cpptrace/main SYSTEM)
 
 # https://github.com/Neargye/magic_enum v0.9.7
