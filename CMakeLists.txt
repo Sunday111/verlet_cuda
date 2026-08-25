@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.29)
 
 project(verlet_cuda)
 
@@ -37,8 +37,59 @@ set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${YAE_SUPPORT_ROOT}/cmake")
 
 include(yae_lto)
 enable_lto_globally()
-
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(YAE_STAGING_ROOT "${CMAKE_BINARY_DIR}/.yae-staging")
+set(YAE_STAGING_PLAN "${YAE_STAGING_ROOT}/active-manifests.txt")
+find_package(Python3 3.12 REQUIRED COMPONENTS Interpreter)
+execute_process(
+    COMMAND ${Python3_EXECUTABLE}
+            "${YAE_SUPPORT_ROOT}/scripts/stage_directories.py"
+            --write-plan
+            --manifest-root "${YAE_STAGING_ROOT}"
+            --active-manifests "${YAE_STAGING_PLAN}"
+            --plan-entry "manifest\tcontent/klvk_compute_shader_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/compute_shader/content"
+            --plan-entry "manifest\tcontent/klvk_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/content"
+            --plan-entry "manifest\tcontent/klvk_curve_fractal_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/curve_fractal/content"
+            --plan-entry "manifest\tcontent/klvk_fractal_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/fractal/content"
+            --plan-entry "manifest\tcontent/klvk_geometry_shader_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/geometry_shader/content"
+            --plan-entry "manifest\tcontent/klvk_minimal_cube_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/minimal_cube/content"
+            --plan-entry "manifest\tcontent/klvk_minimal_quad_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/minimal_quad/content"
+            --plan-entry "manifest\tcontent/klvk_post_processing_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/post_processing/content"
+            --plan-entry "manifest\tcontent/klvk_render_to_texture_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/render_to_texture/content"
+            --plan-entry "manifest\tcontent/klvk_simple_lit_cube_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/simple_lit_cube/content"
+            --plan-entry "manifest\tcontent/klvk_stencil_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/stencil/content"
+            --plan-entry "manifest\tcontent/klvk_text_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/text/content"
+            --plan-entry "manifest\tcontent/klvk_textured_quad_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/textured_quad/content"
+            --plan-entry "manifest\tcontent/klvk_two_textures_example_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/two_textures/content"
+            --plan-entry "manifest\tcontent/verlet_cuda_copy_files.manifest"
+            --plan-entry "source\t${CMAKE_CURRENT_SOURCE_DIR}/src/verlet_cuda/content"
+    RESULT_VARIABLE YAE_STAGING_PLAN_RESULT
+    ERROR_VARIABLE YAE_STAGING_PLAN_ERROR)
+if(NOT YAE_STAGING_PLAN_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to publish staging plan: ${YAE_STAGING_PLAN_ERROR}")
+endif()
+add_custom_target(yae_reconcile_staging ALL
+    COMMAND ${Python3_EXECUTABLE} "${YAE_SUPPORT_ROOT}/scripts/stage_directories.py"
+            --reconcile
+            --destination-root "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+            --manifest-root "${YAE_STAGING_ROOT}"
+            --active-manifests "${YAE_STAGING_PLAN}"
+            --legacy-manifest-root "${CMAKE_BINARY_DIR}/yae_modules"
+    COMMENT "reconcile staged content"
+    VERBATIM)
 
 
 # https://github.com/fmtlib/fmt 12.2.0
@@ -162,17 +213,15 @@ set(YAE_klvk_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk)
 add_subdirectory(${YAE_klvk_SOURCES} yae_modules/Sunday111/klvk/main/klvk SYSTEM)
 
 include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/ffmpeg.cmake)
-include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/klvk/warnings.cmake)
 set(YAE_verlet_cuda_SOURCES src/verlet_cuda)
 add_subdirectory(${YAE_verlet_cuda_SOURCES} yae_modules/src/verlet_cuda SYSTEM)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/src/verlet_cuda/add_cuda.cmake)
-# https://github.com/google/benchmark v1.9.4
-set(YAE_gbench_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/benchmark/v1.9.4)
+# https://github.com/google/benchmark v1.9.5
+set(YAE_gbench_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/benchmark/v1.9.5)
 option(BENCHMARK_ENABLE_TESTING "" OFF)
-add_subdirectory(${YAE_gbench_SOURCES} yae_modules/google/benchmark/v1.9.4 SYSTEM)
+add_subdirectory(${YAE_gbench_SOURCES} yae_modules/google/benchmark/v1.9.5 SYSTEM)
 
-include(${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/yae-support/main/modules/third_party/gbench.module.cmake)
 # https://github.com/google/googletest v1.18.0
 set(YAE_gtest_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/google/googletest/v1.18.0)
 option(INSTALL_GTEST "" OFF)
@@ -293,5 +342,137 @@ add_subdirectory(${YAE_edt_tests_SOURCES} yae_modules/Sunday111/edt/main/modules
 set(YAE_AssTests_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/ass/main/modules/AssTests)
 add_subdirectory(${YAE_AssTests_SOURCES} yae_modules/Sunday111/ass/main/modules/AssTests SYSTEM)
 
+if(TARGET yae_reconcile_staging AND TARGET edt)
+    add_dependencies(edt yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET ass)
+    add_dependencies(ass yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET refl)
+    add_dependencies(refl yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET imgui_vulkan)
+    add_dependencies(imgui_vulkan yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET stb)
+    add_dependencies(stb yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk)
+    add_dependencies(klvk yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET verlet_cuda)
+    add_dependencies(verlet_cuda yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET yae_example_benchmark)
+    add_dependencies(yae_example_benchmark yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET yae_example_benchmark_main)
+    add_dependencies(yae_example_benchmark_main yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET yae_example_library)
+    add_dependencies(yae_example_library yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET yae_example_header_only)
+    add_dependencies(yae_example_header_only yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET yae_example_executable)
+    add_dependencies(yae_example_executable yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET yae_example_tests)
+    add_dependencies(yae_example_tests yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET yae_example_tests_main)
+    add_dependencies(yae_example_tests_main yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_application_frame_pacing_test)
+    add_dependencies(klvk_application_frame_pacing_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_compute_shader_example)
+    add_dependencies(klvk_compute_shader_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_curve_example)
+    add_dependencies(klvk_curve_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_curve_fractal_example)
+    add_dependencies(klvk_curve_fractal_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_diagnostic_config_test)
+    add_dependencies(klvk_diagnostic_config_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_diagnostic_replay_test)
+    add_dependencies(klvk_diagnostic_replay_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_event_manager_test)
+    add_dependencies(klvk_event_manager_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_falling_sand_example)
+    add_dependencies(klvk_falling_sand_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_fractal_example)
+    add_dependencies(klvk_fractal_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_geometry_shader_example)
+    add_dependencies(klvk_geometry_shader_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_minimal_cube_example)
+    add_dependencies(klvk_minimal_cube_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_minimal_quad_example)
+    add_dependencies(klvk_minimal_quad_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_painter2d_example)
+    add_dependencies(klvk_painter2d_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_pendulum_example)
+    add_dependencies(klvk_pendulum_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_perf_recorder_test)
+    add_dependencies(klvk_perf_recorder_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_post_processing_example)
+    add_dependencies(klvk_post_processing_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_render_to_texture_example)
+    add_dependencies(klvk_render_to_texture_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_shader_cache_test)
+    add_dependencies(klvk_shader_cache_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_simple_lit_cube_example)
+    add_dependencies(klvk_simple_lit_cube_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_stencil_example)
+    add_dependencies(klvk_stencil_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_tetris_example)
+    add_dependencies(klvk_tetris_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_text_example)
+    add_dependencies(klvk_text_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_textured_quad_example)
+    add_dependencies(klvk_textured_quad_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_timer_manager_test)
+    add_dependencies(klvk_timer_manager_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_two_textures_example)
+    add_dependencies(klvk_two_textures_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_vulkan_hpp_test)
+    add_dependencies(klvk_vulkan_hpp_test yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET imgui_glfw_cmake)
+    add_dependencies(imgui_glfw_cmake yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET refl_tests)
+    add_dependencies(refl_tests yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET edt_tests)
+    add_dependencies(edt_tests yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET AssTests)
+    add_dependencies(AssTests yae_reconcile_staging)
+endif()
 
 enable_testing()
