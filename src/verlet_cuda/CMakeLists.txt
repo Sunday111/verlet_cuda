@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 enable_language(CUDA)
 include(set_compiler_options)
+include(yae_debug_info_compression)
 set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/coloring/object_color_function.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/coloring/spawn_color/spawn_color_strategy.hpp
@@ -29,6 +30,7 @@ target_link_libraries(verlet_cuda PUBLIC fmt
                                          klvk)
 target_include_directories(verlet_cuda PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/code/public)
 target_include_directories(verlet_cuda PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/code/private)
+enable_debug_info_compression_for(verlet_cuda)
 include(${CMAKE_CURRENT_SOURCE_DIR}/add_cuda.cmake)
 add_custom_target(verlet_cuda_copy_files ALL
     COMMAND ${Python3_EXECUTABLE} "${YAE_SUPPORT_ROOT}/scripts/stage_directories.py"

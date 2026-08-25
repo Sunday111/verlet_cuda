@@ -16,6 +16,7 @@ namespace verlet
 {
 namespace
 {
+constexpr float kObjectCounterFontScale = 45.f / 13.f;
 
 // The world-to-view matrix as three vec4 columns, matching the push constant block layout.
 struct PushConstants
@@ -72,20 +73,6 @@ void VerletCudaApp::Initialize()
     grid_cells_ = MakeCudaArray<GridCell>(constants::kGridNumCells, cuda_stream_);
     CudaMemset(std::span{grid_cells_.get(), constants::kGridNumCells}, 0, cuda_stream_);
     cudaStreamSynchronize(cuda_stream_);
-
-    big_font_ = [&](float font_scale)
-    {
-        ImGuiIO& io = ImGui::GetIO();
-        const ImFont& default_font = *io.Fonts->Fonts.front();
-        ImFontConfig config{};
-        config.SizePixels = default_font.FontSize * font_scale;
-        config.OversampleH = config.OversampleV = 1;
-        config.PixelSnapH = true;
-        ImFont* font = io.Fonts->AddFontDefault(&config);
-        klvk::ErrorHandling::Ensure(font != nullptr, "Failed to create object counter font");
-        font->Scale = default_font.Scale;
-        return font;
-    }(45.f / 13.f);
 
     do  // NOLINT
     {
@@ -414,7 +401,7 @@ void VerletCudaApp::Tick()
     {
         const Vec2f window_padding{10, 10};
 
-        ImGui::PushFont(big_font_);
+        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * kObjectCounterFontScale);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ToImVec(window_padding));
 
