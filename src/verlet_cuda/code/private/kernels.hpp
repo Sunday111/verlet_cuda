@@ -1,8 +1,8 @@
 #pragma once
 
-#include "edt/math/matrix.hpp"
 #include "constants.hpp"
 #include "driver_types.h"
+#include "edt/math/matrix.hpp"
 #include "verlet_object.hpp"
 
 namespace verlet
@@ -34,14 +34,10 @@ public:
 class Kernels
 {
 public:
-    // Return the launch status instead of reporting it here: this header is also included by
-    // kernels.cu, which is compiled against a different standard library than the rest of the
-    // project, so only trivial types may cross the boundary.
     [[nodiscard]] static cudaError_t
     PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects);
     [[nodiscard]] static cudaError_t
     SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset);
-    [[nodiscard]] static cudaError_t
-    UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects);
+    [[nodiscard]] static cudaError_t UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects);
 };
 }  // namespace verlet
