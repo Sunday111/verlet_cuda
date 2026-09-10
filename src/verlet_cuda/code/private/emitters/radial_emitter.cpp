@@ -67,7 +67,7 @@ void RadialEmitter::Tick(VerletCudaApp& app)
         VerletObject obj{
             .old_position = config.position + config.radius * v,
             .position =
-                config.position + (config.radius + config.speed_factor * constants::kTimeStepDurationSeconds) * v,
+                config.position + (config.radius + config.speed_factor * constants::kTimeSubStepDurationSeconds) * v,
             .color = {},
             .scale = Vec2f{} + constants::kObjectRadius,
         };
