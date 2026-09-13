@@ -39,11 +39,12 @@ public:
     void OnMouseScroll(const klvk::events::OnMouseScroll& event);
     [[nodiscard]] Vec2f GetMousePositionInWorldCoordinates() const;
     void Tick() override;
-    void AddObject(const VerletObject& object, const VerletAppearance& appearance)
+    void AddObject(const VerletObject& object, Vec2f previous_position, const VerletAppearance& appearance)
     {
         if (GetRemainingObjectCapacity() != 0)
         {
             pending_objects_.push_back(object);
+            pending_previous_positions_.push_back(previous_position);
             pending_appearances_.push_back(appearance);
         }
     }
@@ -59,7 +60,7 @@ public:
 
 private:
     void SpawnPendingObjects();
-    // Grows both shared buffers when needed and returns a device view of the objects.
+    // Grows particle storage when needed and returns a device view of the objects.
     std::span<VerletObject> ReserveAndGetDevicePtr(size_t required_size);
     void DrawObjects();
 
@@ -74,9 +75,7 @@ private:
     klvk::Viewport viewport_{};
     klvk::RenderTransforms2d render_transforms_{};
 
-    // The objects live in memory shared with CUDA: kernels write it, the vertex
-    // shader reads it as an instance-rate vertex buffer.
-    CudaVkBuffer objects_buffer_;
+    CudaVkBuffer render_objects_buffer_;
     CudaVkBuffer appearances_buffer_;
 
     std::unique_ptr<klvk::Texture> texture_;
@@ -85,8 +84,11 @@ private:
     vk::UniquePipeline pipeline_;
 
     CudaPtr<GridCell> grid_cells_;
+    CudaPtr<Vec2f> previous_positions_;
+    CudaPtr<VerletObject> simulation_objects_;
 
     std::vector<VerletObject> pending_objects_;
+    std::vector<Vec2f> pending_previous_positions_;
     std::vector<VerletAppearance> pending_appearances_;
     std::vector<std::unique_ptr<Emitter>> emitters_;
 

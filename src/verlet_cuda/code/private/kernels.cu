@@ -137,7 +137,12 @@ __global__ void SolveCollisions_ManyRows(
     SolveCollisionsFromCell(cell, grid_size.x(), cells, objects);
 }
 
-__global__ void UpdatePositions(size_t num_objects, VerletObject* objects, edt::Vec2f gravity, float velocity_damping)
+__global__ void UpdatePositions(
+    size_t num_objects,
+    VerletObject* objects,
+    Vec2f* previous_positions,
+    edt::Vec2f gravity,
+    float velocity_damping)
 {
     constexpr float margin = 2.0f;
     constexpr auto constraint_with_margin = constants::kWorldRange.Enlarged(-margin);
@@ -147,7 +152,7 @@ __global__ void UpdatePositions(size_t num_objects, VerletObject* objects, edt::
     if (object_index >= num_objects) return;
 
     auto& position = objects[object_index].position;
-    auto& old_position = objects[object_index].old_position;
+    auto& old_position = previous_positions[object_index];
 
     const auto last_update_move = position - old_position;
 
@@ -188,13 +193,15 @@ Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* ob
     return cudaGetLastError();
 }
 
-cudaError_t Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects)
+cudaError_t
+Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects, Vec2f* previous_positions)
 {
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
     kernels_impl::UpdatePositions<<<num_blocks, threads_per_block, 0, stream>>>(
         num_objects,
         objects,
+        previous_positions,
         constants::kGravity,
         constants::kVelocityDamping);
     return cudaGetLastError();

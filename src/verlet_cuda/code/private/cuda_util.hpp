@@ -41,13 +41,8 @@ static void CheckResult(cudaError_t result, fmt::format_string<Args...> format_s
     }
 }
 
-// A buffer that Vulkan and CUDA both address: the Vulkan allocation is exported as an
-// opaque fd and imported by CUDA, so kernels write the objects in place and the very
-// same Vulkan buffer is bound as the instance vertex buffer - no copies between the APIs.
-//
-// This replaces the cudaGraphicsGLRegisterBuffer path used with OpenGL. Unlike the GL
-// interop there is no map/unmap: the device pointer stays valid for the buffer's lifetime.
-// Access has to be synchronized by the caller (see VerletCudaApp::Tick).
+// A Vulkan buffer mapped into CUDA through exported device memory.
+// Access is synchronized by the caller.
 class CudaVkBuffer
 {
 public:
