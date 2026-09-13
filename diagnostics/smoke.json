@@ -2,6 +2,7 @@
   "version": 1,
   "presentation": "offscreen",
   "framebuffer_size": [1280, 720],
+  "initial_cursor_position": [640, 360],
   "clock": {
     "mode": "fixed",
     "step_seconds": 0.016666666666666666
