@@ -61,6 +61,7 @@ __device__ void SolveCollisionBetweenObjectAndCell(
     const GridCell* cells,
     VerletObject* objects,
     VerletObject& object,
+    Vec2f& object_position,
     size_t origin_cell_index)
 {
     uint32_t another_object_index = cells[origin_cell_index].first_object_index;  // NOLINT
@@ -81,7 +82,7 @@ __device__ void SolveCollisionBetweenObjectAndCell(
         }
 
         auto& another_object_position = another_object.position;
-        const Vec2f axis = object.position - another_object_position;
+        const Vec2f axis = object_position - another_object_position;
         const float dist_sq = axis.SquaredLength();
         if (dist_sq < 1.0f)
         {
@@ -91,7 +92,7 @@ __device__ void SolveCollisionBetweenObjectAndCell(
                                       ? axis * (delta / dist)
                                       : Vec2f{&object < &another_object ? -delta : delta, 0.f};
             const auto ac = 0.5f, bc = 0.5f;  // mass coefficients
-            object.position += ac * col_vec;
+            object_position += ac * col_vec;
             another_object_position -= bc * col_vec;
         }
     }
@@ -105,16 +106,18 @@ SolveCollisionsFromCell(Vec2<size_t> cell, size_t grid_width, const GridCell* ce
     while (object_index != kInvalidObjectIndex)
     {
         VerletObject& object = objects[object_index];  // NOLINT
-        SolveCollisionBetweenObjectAndCell<true>(cells, objects, object, cell_index);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + 1);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - 1);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + grid_width);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + grid_width + 1);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index + grid_width - 1);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - grid_width);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - grid_width + 1);
-        SolveCollisionBetweenObjectAndCell(cells, objects, object, cell_index - grid_width - 1);
+        Vec2f object_position = object.position;
+        SolveCollisionBetweenObjectAndCell<true>(cells, objects, object, object_position, cell_index);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index + 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index - 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index + grid_width);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index + grid_width + 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index + grid_width - 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index - grid_width);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index - grid_width + 1);
+        SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index - grid_width - 1);
 
+        object.position = object_position;
         object_index = object.next_object_in_cell;
     }
 }

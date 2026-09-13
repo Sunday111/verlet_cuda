@@ -1,3 +1,4 @@
+#include <array>
 #include <cmath>
 #include <print>
 
@@ -8,13 +9,28 @@ __global__ void ResolvePair(verlet::VerletObject* objects, bool reverse, bool se
     verlet::GridCell cell{.first_object_index = 0};
     objects[0].next_object_in_cell = self_only ? verlet::kInvalidObjectIndex : 1;
     objects[1].next_object_in_cell = verlet::kInvalidObjectIndex;
-    verlet::kernels_impl::SolveCollisionBetweenObjectAndCell<true>(&cell, objects, objects[reverse ? 1 : 0], 0);
+    auto& object = objects[reverse ? 1 : 0];
+    auto position = object.position;
+    verlet::kernels_impl::SolveCollisionBetweenObjectAndCell<true>(&cell, objects, object, position, 0);
+    object.position = position;
+}
+
+__global__ void ResolveCell(verlet::VerletObject* objects)
+{
+    std::array<verlet::GridCell, 25> cells{};
+    cells[12].first_object_index = 0;
+    cells[13].first_object_index = 2;
+    cells[11].first_object_index = 3;
+    cells[17].first_object_index = 4;
+    cells[7].first_object_index = 5;
+    objects[0].next_object_in_cell = 1;
+    verlet::kernels_impl::SolveCollisionsFromCell({2, 2}, 5, cells.data(), objects);
 }
 
 int main()
 {
     verlet::VerletObject* objects = nullptr;
-    if (cudaMallocManaged(&objects, 2 * sizeof(*objects)) != cudaSuccess) return 1;
+    if (cudaMallocManaged(&objects, 6 * sizeof(*objects)) != cudaSuccess) return 1;
     bool success = true;
     for (float distance :
          {0.f,
@@ -76,7 +92,50 @@ int main()
     ResolvePair<<<1, 1>>>(objects, false, true);
     if (cudaDeviceSynchronize() != cudaSuccess) return 1;
     success &= objects[0].position == verlet::Vec2f{2.f, 3.f};
+
+    const std::array initial_positions{
+        verlet::Vec2f{2.15f, 2.4f},
+        verlet::Vec2f{2.7f, 2.6f},
+        verlet::Vec2f{3.1f, 2.55f},
+        verlet::Vec2f{1.8f, 2.4f},
+        verlet::Vec2f{2.4f, 3.1f},
+        verlet::Vec2f{2.6f, 1.8f}};
+    std::array<edt::Vec2<double>, 6> expected_positions{};
+    for (size_t index = 0; index < initial_positions.size(); ++index)
+    {
+        objects[index] = {.position = initial_positions[index]};
+        expected_positions[index] = initial_positions[index].Cast<double>();
+    }
+    for (size_t origin = 0; origin < 2; ++origin)
+    {
+        for (size_t neighbour = 0; neighbour < expected_positions.size(); ++neighbour)
+        {
+            if (origin == neighbour) continue;
+            const edt::Vec2<double> axis = expected_positions[origin] - expected_positions[neighbour];
+            const double distance = std::hypot(axis.x(), axis.y());
+            if (distance >= 1.) continue;
+            const edt::Vec2<double> displacement = axis * (0.25 * (1. - distance) / distance);
+            expected_positions[origin] += displacement;
+            expected_positions[neighbour] -= displacement;
+        }
+    }
+    ResolveCell<<<1, 1>>>(objects);
+    if (cudaDeviceSynchronize() != cudaSuccess)
+    {
+        cudaFree(objects);
+        return 1;
+    }
+    for (size_t index = 0; index < expected_positions.size(); ++index)
+    {
+        const auto error = objects[index].position.Cast<double>() - expected_positions[index];
+        const bool valid = std::abs(error.x()) < 1.e-6 && std::abs(error.y()) < 1.e-6;
+        if (!valid)
+        {
+            std::println("Failed: multicell particle={} error=({:g},{:g})", index, error.x(), error.y());
+        }
+        success &= valid;
+    }
     cudaFree(objects);
-    std::println("{}", success ? "121 collision cases passed" : "Collision tests failed");
+    std::println("{}", success ? "121 collision cases and multicell regression passed" : "Collision tests failed");
     return success ? 0 : 1;
 }

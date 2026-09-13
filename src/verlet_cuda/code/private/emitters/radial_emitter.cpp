@@ -68,13 +68,9 @@ void RadialEmitter::Tick(VerletCudaApp& app)
             .old_position = config.position + config.radius * v,
             .position =
                 config.position + (config.radius + config.speed_factor * constants::kTimeSubStepDurationSeconds) * v,
-            .color = {},
-            .scale = Vec2f{} + constants::kObjectRadius,
         };
 
-        obj.color = color_fn(obj);
-
-        app.AddObject(obj);
+        app.AddObject(obj, {.color = color_fn(obj), .scale = Vec2f{} + constants::kObjectRadius});
     }
 
     state.phase_degrees = NormalizeDegrees(state.phase_degrees + config.rotation_speed);
