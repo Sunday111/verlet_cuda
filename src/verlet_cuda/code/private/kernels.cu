@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 
 #include <cassert>
+#include <limits>
 
 #include "kernels.hpp"
 
@@ -62,7 +63,6 @@ __device__ void SolveCollisionBetweenObjectAndCell(
     VerletObject& object,
     size_t origin_cell_index)
 {
-    constexpr float eps = 0.0001f;
     uint32_t another_object_index = cells[origin_cell_index].first_object_index;  // NOLINT
     while (another_object_index != kInvalidObjectIndex)
     {
@@ -83,11 +83,13 @@ __device__ void SolveCollisionBetweenObjectAndCell(
         auto& another_object_position = another_object.position;
         const Vec2f axis = object.position - another_object_position;
         const float dist_sq = axis.SquaredLength();
-        if (dist_sq < 1.0f && dist_sq > eps)
+        if (dist_sq < 1.0f)
         {
             const float dist = sqrt(dist_sq);
             const float delta = 0.5f - dist / 2;
-            const Vec2f col_vec = axis * (delta / dist);
+            const Vec2f col_vec = dist_sq >= std::numeric_limits<float>::min()
+                                      ? axis * (delta / dist)
+                                      : Vec2f{&object < &another_object ? -delta : delta, 0.f};
             const auto ac = 0.5f, bc = 0.5f;  // mass coefficients
             object.position += ac * col_vec;
             another_object_position -= bc * col_vec;
