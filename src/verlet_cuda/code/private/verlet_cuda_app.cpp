@@ -110,9 +110,10 @@ void VerletCudaApp::CreatePipeline()
                     .VertexShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.vert.slang")
                     .FragmentShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.frag.slang")
                     .VertexBinding(0, sizeof(VerletObject), vk::VertexInputRate::eInstance)
+                    .VertexBinding(1, sizeof(VerletAppearance), vk::VertexInputRate::eInstance)
                     .VertexAttribute(0, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, position))
-                    .VertexAttribute(1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(VerletObject, color))
-                    .VertexAttribute(2, 0, vk::Format::eR32G32Sfloat, offsetof(VerletObject, scale))
+                    .VertexAttribute(1, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(VerletAppearance, color))
+                    .VertexAttribute(2, 1, vk::Format::eR32G32Sfloat, offsetof(VerletAppearance, scale))
                     .AlphaBlend()
                     .Build();
 }
@@ -127,19 +128,29 @@ std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_si
     constexpr size_t kCapacityGrowthStep = 5000;
     const size_t new_capacity = kCapacityGrowthStep * ((required_size + kCapacityGrowthStep) / kCapacityGrowthStep);
     CudaVkBuffer new_buffer(GetDeviceContext(), sizeof(VerletObject) * new_capacity);
+    CudaVkBuffer new_appearances_buffer(GetDeviceContext(), sizeof(VerletAppearance) * new_capacity);
     const std::span<VerletObject> new_device_objects = new_buffer.GetDeviceSpan<VerletObject>();
+    const auto new_device_appearances = new_appearances_buffer.GetDeviceSpan<VerletAppearance>();
 
     if (used_objects_count_ != 0)
     {
         const std::span<VerletObject> prev_device_objects = objects_buffer_.GetDeviceSpan<VerletObject>();
+        const auto prev_device_appearances = appearances_buffer_.GetDeviceSpan<VerletAppearance>();
         klvk::ErrorHandling::Ensure(
-            prev_device_objects.size() == reserved_objects_count_,
-            "Unexpected size of device array. Expected: {}. Actual: {}",
+            prev_device_objects.size() == reserved_objects_count_ &&
+                prev_device_appearances.size() == reserved_objects_count_,
+            "Unexpected size of device arrays. Expected: {}. Objects: {}. Appearances: {}",
             reserved_objects_count_,
-            prev_device_objects.size());
+            prev_device_objects.size(),
+            prev_device_appearances.size());
         CudaMemcpy(
             prev_device_objects.subspan(0, used_objects_count_),
             new_device_objects.subspan(0, used_objects_count_),
+            cudaMemcpyDeviceToDevice,
+            cuda_stream_);
+        CudaMemcpy(
+            prev_device_appearances.subspan(0, used_objects_count_),
+            new_device_appearances.subspan(0, used_objects_count_),
             cudaMemcpyDeviceToDevice,
             cuda_stream_);
         CheckResult(cudaStreamSynchronize(cuda_stream_));
@@ -148,6 +159,7 @@ std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_si
     // Destroying the old buffer here is only safe because Tick made the device idle
     // before calling into this, so no in-flight frame is still reading it.
     objects_buffer_ = std::move(new_buffer);
+    appearances_buffer_ = std::move(new_appearances_buffer);
 
     reserved_objects_count_ = new_capacity;
     return new_device_objects;
@@ -162,14 +174,21 @@ void VerletCudaApp::SpawnPendingObjects()
 
     const size_t new_count = used_objects_count_ + pending_objects_.size();
     const std::span<VerletObject> device_objects = ReserveAndGetDevicePtr(new_count);
+    const auto device_appearances = appearances_buffer_.GetDeviceSpan<VerletAppearance>();
     klvk::ErrorHandling::Ensure(
-        device_objects.size() == reserved_objects_count_,
-        "Unexpected size of device array. Expected: {}. Actual: {}",
+        device_objects.size() == reserved_objects_count_ && device_appearances.size() == reserved_objects_count_,
+        "Unexpected size of device arrays. Expected: {}. Objects: {}. Appearances: {}",
         reserved_objects_count_,
-        device_objects.size());
+        device_objects.size(),
+        device_appearances.size());
     CudaMemcpy(
         std::span{pending_objects_},
         device_objects.subspan(used_objects_count_, pending_objects_.size()),
+        cudaMemcpyHostToDevice,
+        cuda_stream_);
+    CudaMemcpy(
+        std::span{pending_appearances_},
+        device_appearances.subspan(used_objects_count_, pending_appearances_.size()),
         cudaMemcpyHostToDevice,
         cuda_stream_);
 
@@ -177,6 +196,7 @@ void VerletCudaApp::SpawnPendingObjects()
 
     used_objects_count_ = new_count;
     pending_objects_.clear();
+    pending_appearances_.clear();
 }
 
 void VerletCudaApp::UpdateCamera()
@@ -226,8 +246,8 @@ void VerletCudaApp::DrawObjects()
     command_buffer
         .bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout_.GetHandle(), 0, descriptor_sets, {});
 
-    const std::array vertex_buffers{objects_buffer_.GetHandle()};
-    const std::array<vk::DeviceSize, 1> offsets{0};
+    const std::array vertex_buffers{objects_buffer_.GetHandle(), appearances_buffer_.GetHandle()};
+    const std::array<vk::DeviceSize, 2> offsets{0, 0};
     command_buffer.bindVertexBuffers(0, vertex_buffers, offsets);
 
     // The shader constructs the mat3 from columns.
@@ -390,12 +410,9 @@ void VerletCudaApp::Tick()
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::GetIO().WantCaptureMouse)
     {
         const auto mouse_position = GetMousePositionInWorldCoordinates();
-        AddObject({
-            .old_position = mouse_position,
-            .position = mouse_position,
-            .color = {1, 0, 0, 1},
-            .scale = Vec2f{} + constants::kObjectRadius,
-        });
+        AddObject(
+            {.old_position = mouse_position, .position = mouse_position},
+            {.color = {1, 0, 0, 1}, .scale = Vec2f{} + constants::kObjectRadius});
     }
 
     {
