@@ -103,8 +103,6 @@ void VerletCudaApp::CreatePipeline()
         pipeline_layout_ = klvk::PipelineLayout{context, set_layouts, push_constant_ranges};
     }
 
-    // The CUDA-written objects buffer is bound as an instance-rate vertex buffer, so the
-    // shader reads exactly the memory the kernels wrote.
     pipeline_ = klvk::GraphicsPipelineBuilder(*this)
                     .Layout(pipeline_layout_)
                     .VertexShaderFile(GetShaderDir() / "cuda_verlet/cuda_verlet.vert.slang")
@@ -122,26 +120,26 @@ std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_si
 {
     if (required_size <= reserved_objects_count_)
     {
-        return objects_buffer_.GetDeviceSpan<VerletObject>();
+        return std::span{simulation_objects_.get(), reserved_objects_count_};
     }
 
     constexpr size_t kCapacityGrowthStep = 5000;
     const size_t new_capacity = kCapacityGrowthStep * ((required_size + kCapacityGrowthStep) / kCapacityGrowthStep);
+    auto new_simulation_objects = MakeCudaArray<VerletObject>(new_capacity, cuda_stream_);
+    auto new_previous_positions = MakeCudaArray<Vec2f>(new_capacity, cuda_stream_);
     CudaVkBuffer new_buffer(GetDeviceContext(), sizeof(VerletObject) * new_capacity);
     CudaVkBuffer new_appearances_buffer(GetDeviceContext(), sizeof(VerletAppearance) * new_capacity);
-    const std::span<VerletObject> new_device_objects = new_buffer.GetDeviceSpan<VerletObject>();
+    const std::span<VerletObject> new_device_objects{new_simulation_objects.get(), new_capacity};
     const auto new_device_appearances = new_appearances_buffer.GetDeviceSpan<VerletAppearance>();
 
     if (used_objects_count_ != 0)
     {
-        const std::span<VerletObject> prev_device_objects = objects_buffer_.GetDeviceSpan<VerletObject>();
+        const std::span<VerletObject> prev_device_objects{simulation_objects_.get(), reserved_objects_count_};
         const auto prev_device_appearances = appearances_buffer_.GetDeviceSpan<VerletAppearance>();
         klvk::ErrorHandling::Ensure(
-            prev_device_objects.size() == reserved_objects_count_ &&
-                prev_device_appearances.size() == reserved_objects_count_,
-            "Unexpected size of device arrays. Expected: {}. Objects: {}. Appearances: {}",
+            prev_device_appearances.size() == reserved_objects_count_,
+            "Unexpected size of appearance array. Expected: {}. Actual: {}",
             reserved_objects_count_,
-            prev_device_objects.size(),
             prev_device_appearances.size());
         CudaMemcpy(
             prev_device_objects.subspan(0, used_objects_count_),
@@ -153,12 +151,19 @@ std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_si
             new_device_appearances.subspan(0, used_objects_count_),
             cudaMemcpyDeviceToDevice,
             cuda_stream_);
+        CudaMemcpy(
+            std::span{previous_positions_.get(), used_objects_count_},
+            std::span{new_previous_positions.get(), used_objects_count_},
+            cudaMemcpyDeviceToDevice,
+            cuda_stream_);
         CheckResult(cudaStreamSynchronize(cuda_stream_));
     }
 
     // Destroying the old buffer here is only safe because Tick made the device idle
     // before calling into this, so no in-flight frame is still reading it.
-    objects_buffer_ = std::move(new_buffer);
+    simulation_objects_ = std::move(new_simulation_objects);
+    previous_positions_ = std::move(new_previous_positions);
+    render_objects_buffer_ = std::move(new_buffer);
     appearances_buffer_ = std::move(new_appearances_buffer);
 
     reserved_objects_count_ = new_capacity;
@@ -192,10 +197,16 @@ void VerletCudaApp::SpawnPendingObjects()
         cudaMemcpyHostToDevice,
         cuda_stream_);
 
+    CudaMemcpy(
+        std::span{pending_previous_positions_},
+        std::span{previous_positions_.get() + used_objects_count_, pending_previous_positions_.size()},
+        cudaMemcpyHostToDevice,
+        cuda_stream_);
     CheckResult(cudaStreamSynchronize(cuda_stream_));
 
     used_objects_count_ = new_count;
     pending_objects_.clear();
+    pending_previous_positions_.clear();
     pending_appearances_.clear();
 }
 
@@ -246,7 +257,7 @@ void VerletCudaApp::DrawObjects()
     command_buffer
         .bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout_.GetHandle(), 0, descriptor_sets, {});
 
-    const std::array vertex_buffers{objects_buffer_.GetHandle(), appearances_buffer_.GetHandle()};
+    const std::array vertex_buffers{render_objects_buffer_.GetHandle(), appearances_buffer_.GetHandle()};
     const std::array<vk::DeviceSize, 2> offsets{0, 0};
     command_buffer.bindVertexBuffers(0, vertex_buffers, offsets);
 
@@ -273,10 +284,8 @@ void VerletCudaApp::Tick()
 
     UpdateCamera();
 
-    // CUDA and Vulkan share the objects buffer but are not synchronized through external
-    // semaphores here, so frames still in flight could be reading it while the kernels
-    // write. Growing the buffer also destroys the old Vulkan buffer. Going idle first covers
-    // both, at the cost of the frame overlap the OpenGL version got from the driver.
+    // In-flight frames must finish reading the snapshot before CUDA replaces it or
+    // spawning reallocates the shared buffers.
     GetDeviceContext().WaitIdle();
 
     // Objects queued during the previous tick become visible now. This ran at the end of
@@ -290,15 +299,7 @@ void VerletCudaApp::Tick()
         {
             if (used_objects_count_ == 0) return;
 
-            std::span<VerletObject> device_objects = objects_buffer_.GetDeviceSpan<VerletObject>();
-            klvk::ErrorHandling::Ensure(
-                device_objects.size() == reserved_objects_count_,
-                "Unexpected size of positions array on device. Expected: {}. Actual: {}",
-                reserved_objects_count_,
-                device_objects.size());
-
-            // Now it is a view to an array of full capacity. We need only subset of it
-            device_objects = device_objects.subspan(0, used_objects_count_);
+            const std::span<VerletObject> device_objects{simulation_objects_.get(), used_objects_count_};
 
             for (size_t substep = 0; substep != constants::kNumSubSteps; ++substep)
             {
@@ -328,11 +329,20 @@ void VerletCudaApp::Tick()
                     }
                 }
                 CheckResult(
-                    Kernels::UpdatePositions(cuda_stream_, used_objects_count_, device_objects.data()),
+                    Kernels::UpdatePositions(
+                        cuda_stream_,
+                        used_objects_count_,
+                        device_objects.data(),
+                        previous_positions_.get()),
                     "UpdatePositions launch");
             }
 
-            cudaStreamSynchronize(cuda_stream_);
+            CudaMemcpy(
+                device_objects,
+                render_objects_buffer_.GetDeviceSpan<VerletObject>().first(used_objects_count_),
+                cudaMemcpyDeviceToDevice,
+                cuda_stream_);
+            CheckResult(cudaStreamSynchronize(cuda_stream_));
         });
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -411,7 +421,8 @@ void VerletCudaApp::Tick()
     {
         const auto mouse_position = GetMousePositionInWorldCoordinates();
         AddObject(
-            {.old_position = mouse_position, .position = mouse_position},
+            {.position = mouse_position},
+            mouse_position,
             {.color = {1, 0, 0, 1}, .scale = Vec2f{} + constants::kObjectRadius});
     }
 

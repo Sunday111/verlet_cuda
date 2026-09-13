@@ -135,7 +135,57 @@ int main()
         }
         success &= valid;
     }
+    verlet::Vec2f* previous_positions = nullptr;
+    if (cudaMallocManaged(&previous_positions, 6 * sizeof(*previous_positions)) != cudaSuccess)
+    {
+        cudaFree(objects);
+        return 1;
+    }
+    const std::array integration_positions{
+        verlet::Vec2f{0.f, 0.f},
+        verlet::Vec2f{3.f, 4.f},
+        verlet::Vec2f{959.f, 519.f},
+        verlet::Vec2f{-959.f, -519.f},
+        verlet::Vec2f{900.f, 0.f},
+        verlet::Vec2f{0.f, 500.f}};
+    const auto bounds = verlet::constants::kWorldRange.Enlarged(-2.f);
+    for (size_t index = 0; index < integration_positions.size(); ++index)
+    {
+        const auto position = integration_positions[index];
+        const verlet::Vec2f displacement{static_cast<float>(index) - 2.f, 3.f - static_cast<float>(index)};
+        objects[index] = {.position = position};
+        previous_positions[index] = position - displacement;
+        const auto move = position.Cast<double>() - previous_positions[index].Cast<double>();
+        const double dt_squared =
+            verlet::constants::kTimeSubStepDurationSeconds * verlet::constants::kTimeSubStepDurationSeconds;
+        const auto expected =
+            position.Cast<double>() + move +
+            (verlet::constants::kGravity.Cast<double>() - move * verlet::constants::kVelocityDamping) * dt_squared;
+        expected_positions[index] = bounds.Clamp(expected.Cast<float>()).Cast<double>();
+    }
+    cudaStream_t stream = nullptr;
+    if (verlet::Kernels::UpdatePositions(stream, integration_positions.size(), objects, previous_positions) !=
+            cudaSuccess ||
+        cudaDeviceSynchronize() != cudaSuccess)
+    {
+        cudaFree(previous_positions);
+        cudaFree(objects);
+        return 1;
+    }
+    for (size_t index = 0; index < integration_positions.size(); ++index)
+    {
+        const auto error = objects[index].position.Cast<double>() - expected_positions[index];
+        const auto& expected = expected_positions[index];
+        const bool valid = previous_positions[index] == integration_positions[index] &&
+                           std::abs(error.x()) < 1.e-6 + std::abs(expected.x()) * 1.e-7 &&
+                           std::abs(error.y()) < 1.e-6 + std::abs(expected.y()) * 1.e-7;
+        if (!valid) std::println("Failed: integration particle={}", index);
+        success &= valid;
+    }
+    cudaFree(previous_positions);
     cudaFree(objects);
-    std::println("{}", success ? "121 collision cases and multicell regression passed" : "Collision tests failed");
+    std::println(
+        "{}",
+        success ? "121 collision cases, multicell and integration regressions passed" : "Collision tests failed");
     return success ? 0 : 1;
 }

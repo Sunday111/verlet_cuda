@@ -1,10 +1,10 @@
 # Particle performance investigation
 
-Measured on 2026-09-13 against baseline `80584b3`. The target workload is 1–2 million particles.
+Measured on 2026-09-13 against baseline `80584b3`. The target workload is 1–2 million particles. Subsequent measurements are in [the steady-state investigation](steady_state.md).
 
 ## Changes
 
-Physics uses a 20-byte `VerletObject`; the 24-byte colour/scale record is stored in a separate `VerletAppearance` buffer. Rendering binds both arrays at the same instance index. Allocation growth and spawning preserve their order, and the application accepts up to two million particles. Total particle storage remains 44 bytes per particle.
+At `d300a36`, physics used a 20-byte `VerletObject`; the 24-byte colour/scale record is stored in a separate `VerletAppearance` buffer. Rendering binds both arrays at the same instance index. Allocation growth and spawning preserve their order, and the application accepts up to two million particles. Total particle storage remains 44 bytes per particle.
 
 The collision solver holds the current object position locally across all nine neighbouring cells, then writes it back before visiting the next origin object. Collision arithmetic and traversal order are preserved. This relies on fixed, unique grid membership during each sweep and disjoint neighbourhoods within each of the nine phases.
 

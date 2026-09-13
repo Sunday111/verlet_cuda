@@ -29,7 +29,8 @@ int main(int argc, char** argv)
     {
         std::println(
             stderr,
-            "Usage: benchmark 100000|1000000|1500000|2000000 sparse|dense|lattice|coincident sweep|frame [samples]");
+            "Usage: benchmark 100000|1000000|1500000|2000000 sparse|dense|lattice|coincident sweep|frame|evolve "
+            "[samples]");
         return EXIT_FAILURE;
     };
     if (argc < 4 || argc > 5) return usage();
@@ -44,7 +45,7 @@ int main(int argc, char** argv)
     if (!parse(argv[1], count) || (count != 100000 && count != 1000000 && count != 1500000 && count != 2000000))
         return usage();
     if (scene != "sparse" && scene != "dense" && scene != "lattice" && scene != "coincident") return usage();
-    if (mode != "sweep" && mode != "frame") return usage();
+    if (mode != "sweep" && mode != "frame" && mode != "evolve") return usage();
     if (argc == 5 && (!parse(argv[4], samples) || samples == 0 || samples > 100000)) return usage();
 
     cudaDeviceProp properties{};
@@ -78,7 +79,6 @@ int main(int argc, char** argv)
         {
             input[index].position = {(uniform() - 0.5f) * width, (uniform() - 0.5f) * height};
         }
-        input[index].old_position = input[index].position;
     }
     for (size_t index = count; index-- > 0;)
     {
@@ -96,10 +96,27 @@ int main(int argc, char** argv)
     Check(cudaMalloc(&seed_cells, grid_bytes), "Allocate seed grid");
     Check(cudaMemcpy(seed_objects, input.data(), object_bytes, cudaMemcpyHostToDevice), "Upload seed objects");
     Check(cudaMemcpy(seed_cells, grid.data(), grid_bytes, cudaMemcpyHostToDevice), "Upload seed grid");
+    std::vector<verlet::Vec2f> previous(count);
+    for (size_t index = 0; index < count; ++index) previous[index] = input[index].position;
+    verlet::Vec2f *previous_positions = nullptr, *seed_previous_positions = nullptr;
+    const size_t previous_bytes = count * sizeof(verlet::Vec2f);
+    Check(cudaMalloc(&previous_positions, previous_bytes), "Allocate previous positions");
+    Check(cudaMalloc(&seed_previous_positions, previous_bytes), "Allocate seed previous positions");
+    Check(
+        cudaMemcpy(seed_previous_positions, previous.data(), previous_bytes, cudaMemcpyHostToDevice),
+        "Upload previous positions");
     cudaStream_t stream = nullptr;
     Check(cudaStreamCreate(&stream), "Create stream");
     const auto reset = [&]
     {
+        Check(
+            cudaMemcpyAsync(
+                previous_positions,
+                seed_previous_positions,
+                previous_bytes,
+                cudaMemcpyDeviceToDevice,
+                stream),
+            "Reset previous positions");
         Check(cudaMemcpyAsync(objects, seed_objects, object_bytes, cudaMemcpyDeviceToDevice, stream), "Reset objects");
         Check(cudaMemcpyAsync(cells, seed_cells, grid_bytes, cudaMemcpyDeviceToDevice, stream), "Reset grid");
     };
@@ -125,7 +142,9 @@ int main(int argc, char** argv)
             Check(cudaMemsetAsync(cells, 255, grid_bytes, stream), "Clear grid");
             Check(verlet::Kernels::PopulateGrid(stream, cells, objects, count), "Launch grid population");
             sweep();
-            Check(verlet::Kernels::UpdatePositions(stream, count, objects), "Launch position update");
+            Check(
+                verlet::Kernels::UpdatePositions(stream, count, objects, previous_positions),
+                "Launch position update");
         }
     };
 
@@ -137,13 +156,20 @@ int main(int argc, char** argv)
         Check(cudaStreamSynchronize(stream), "Synchronise warmup");
     } while (std::chrono::steady_clock::now() - warmup_start < std::chrono::seconds(2));
 
+    if (mode == "evolve")
+    {
+        reset();
+        for (size_t frame = 0; frame < 120; ++frame) run();
+        Check(cudaStreamSynchronize(stream), "Synchronise settling frames");
+    }
+
     cudaEvent_t start = nullptr, end = nullptr;
     Check(cudaEventCreate(&start), "Create start event");
     Check(cudaEventCreate(&end), "Create end event");
     std::println("sample,mode,scene,count,ms");
     for (size_t sample = 0; sample < samples; ++sample)
     {
-        reset();
+        if (mode != "evolve") reset();
         Check(cudaEventRecord(start, stream), "Record start event");
         run();
         Check(cudaEventRecord(end, stream), "Record end event");
@@ -167,6 +193,8 @@ int main(int argc, char** argv)
     Check(cudaEventDestroy(start), "Destroy start event");
     Check(cudaEventDestroy(end), "Destroy end event");
     Check(cudaStreamDestroy(stream), "Destroy stream");
+    Check(cudaFree(previous_positions), "Free previous positions");
+    Check(cudaFree(seed_previous_positions), "Free seed previous positions");
     Check(cudaFree(objects), "Free objects");
     Check(cudaFree(seed_objects), "Free seed objects");
     Check(cudaFree(cells), "Free grid");

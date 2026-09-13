@@ -9,7 +9,6 @@ inline constexpr uint32_t kInvalidObjectIndex = std::numeric_limits<uint32_t>::m
 class VerletObject
 {
 public:
-    edt::Vec2f old_position;
     edt::Vec2f position;
     uint32_t next_object_in_cell = kInvalidObjectIndex;
 };
@@ -21,6 +20,6 @@ public:
     edt::Vec2f scale;
 };
 
-static_assert(sizeof(VerletObject) == 20);
+static_assert(sizeof(VerletObject) == 12);
 static_assert(sizeof(VerletAppearance) == 24);
 }  // namespace verlet

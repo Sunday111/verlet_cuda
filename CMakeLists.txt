@@ -60,6 +60,8 @@ execute_process(
             --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/minimal_cube/content"
             --plan-entry "manifest\tcontent/klvk_minimal_quad_example_copy_files.manifest"
             --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/minimal_quad/content"
+            --plan-entry "manifest\tcontent/klvk_polygon_modes_test_copy_files.manifest"
+            --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/tests/polygon_modes/content"
             --plan-entry "manifest\tcontent/klvk_post_processing_example_copy_files.manifest"
             --plan-entry "source\t${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/post_processing/content"
             --plan-entry "manifest\tcontent/klvk_render_to_texture_example_copy_files.manifest"
@@ -271,6 +273,9 @@ add_subdirectory(${YAE_klvk_event_manager_test_SOURCES} yae_modules/Sunday111/kl
 set(YAE_klvk_falling_sand_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/falling_sand)
 add_subdirectory(${YAE_klvk_falling_sand_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/falling_sand SYSTEM)
 
+set(YAE_klvk_font_face_test_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/tests/font_face)
+add_subdirectory(${YAE_klvk_font_face_test_SOURCES} yae_modules/Sunday111/klvk/main/tests/font_face SYSTEM)
+
 set(YAE_klvk_fractal_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/fractal)
 add_subdirectory(${YAE_klvk_fractal_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/fractal SYSTEM)
 
@@ -292,8 +297,14 @@ add_subdirectory(${YAE_klvk_pendulum_example_SOURCES} yae_modules/Sunday111/klvk
 set(YAE_klvk_perf_recorder_test_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/tests/perf_recorder)
 add_subdirectory(${YAE_klvk_perf_recorder_test_SOURCES} yae_modules/Sunday111/klvk/main/tests/perf_recorder SYSTEM)
 
+set(YAE_klvk_polygon_modes_test_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/tests/polygon_modes)
+add_subdirectory(${YAE_klvk_polygon_modes_test_SOURCES} yae_modules/Sunday111/klvk/main/tests/polygon_modes SYSTEM)
+
 set(YAE_klvk_post_processing_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/post_processing)
 add_subdirectory(${YAE_klvk_post_processing_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/post_processing SYSTEM)
+
+set(YAE_klvk_procedural_texture_test_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/tests/procedural_texture)
+add_subdirectory(${YAE_klvk_procedural_texture_test_SOURCES} yae_modules/Sunday111/klvk/main/tests/procedural_texture SYSTEM)
 
 set(YAE_klvk_render_to_texture_example_SOURCES ${YAE_CLONED_REPOSITORIES_DIR}/Sunday111/klvk/main/examples/render_to_texture)
 add_subdirectory(${YAE_klvk_render_to_texture_example_SOURCES} yae_modules/Sunday111/klvk/main/examples/render_to_texture SYSTEM)
@@ -403,6 +414,9 @@ endif()
 if(TARGET yae_reconcile_staging AND TARGET klvk_falling_sand_example)
     add_dependencies(klvk_falling_sand_example yae_reconcile_staging)
 endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_font_face_test)
+    add_dependencies(klvk_font_face_test yae_reconcile_staging)
+endif()
 if(TARGET yae_reconcile_staging AND TARGET klvk_fractal_example)
     add_dependencies(klvk_fractal_example yae_reconcile_staging)
 endif()
@@ -424,8 +438,14 @@ endif()
 if(TARGET yae_reconcile_staging AND TARGET klvk_perf_recorder_test)
     add_dependencies(klvk_perf_recorder_test yae_reconcile_staging)
 endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_polygon_modes_test)
+    add_dependencies(klvk_polygon_modes_test yae_reconcile_staging)
+endif()
 if(TARGET yae_reconcile_staging AND TARGET klvk_post_processing_example)
     add_dependencies(klvk_post_processing_example yae_reconcile_staging)
+endif()
+if(TARGET yae_reconcile_staging AND TARGET klvk_procedural_texture_test)
+    add_dependencies(klvk_procedural_texture_test yae_reconcile_staging)
 endif()
 if(TARGET yae_reconcile_staging AND TARGET klvk_render_to_texture_example)
     add_dependencies(klvk_render_to_texture_example yae_reconcile_staging)

@@ -65,12 +65,14 @@ void RadialEmitter::Tick(VerletCudaApp& app)
         auto v = edt::Math::TransformVector(matrix, Vec2f::AxisY());
 
         VerletObject obj{
-            .old_position = config.position + config.radius * v,
             .position =
                 config.position + (config.radius + config.speed_factor * constants::kTimeSubStepDurationSeconds) * v,
         };
 
-        app.AddObject(obj, {.color = color_fn(obj), .scale = Vec2f{} + constants::kObjectRadius});
+        app.AddObject(
+            obj,
+            config.position + config.radius * v,
+            {.color = color_fn(obj), .scale = Vec2f{} + constants::kObjectRadius});
     }
 
     state.phase_degrees = NormalizeDegrees(state.phase_degrees + config.rotation_speed);

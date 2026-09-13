@@ -38,6 +38,7 @@ public:
     PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects);
     [[nodiscard]] static cudaError_t
     SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* objects, edt::Vec2<size_t> offset);
-    [[nodiscard]] static cudaError_t UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects);
+    [[nodiscard]] static cudaError_t
+    UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects, Vec2f* previous_positions);
 };
 }  // namespace verlet
