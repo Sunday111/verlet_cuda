@@ -1,5 +1,5 @@
 #include <cmath>
-#include <cstdio>
+#include <print>
 
 #include "../src/verlet_cuda/code/private/kernels.cu"
 
@@ -59,14 +59,14 @@ int main()
                 }
                 if (!valid)
                 {
-                    std::printf(
-                        "Failed: distance=%g direction=(%g,%g) reverse=%d separation=(%g,%g)\n",
-                        static_cast<double>(distance),
-                        static_cast<double>(direction.x()),
-                        static_cast<double>(direction.y()),
+                    std::println(
+                        "Failed: distance={:g} direction=({:g},{:g}) reverse={:d} separation=({:g},{:g})",
+                        distance,
+                        direction.x(),
+                        direction.y(),
                         reverse,
-                        static_cast<double>(separation.x()),
-                        static_cast<double>(separation.y()));
+                        separation.x(),
+                        separation.y());
                 }
                 success &= valid;
             }
@@ -77,6 +77,6 @@ int main()
     if (cudaDeviceSynchronize() != cudaSuccess) return 1;
     success &= objects[0].position == verlet::Vec2f{2.f, 3.f};
     cudaFree(objects);
-    std::puts(success ? "121 collision cases passed" : "Collision tests failed");
+    std::println("{}", success ? "121 collision cases passed" : "Collision tests failed");
     return success ? 0 : 1;
 }
