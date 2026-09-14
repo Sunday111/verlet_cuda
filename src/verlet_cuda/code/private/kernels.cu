@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 
 #include <array>
+#include <cassert>
 #include <cuda/atomic>
 #include <limits>
 
@@ -11,7 +12,9 @@ namespace verlet::kernels_impl
 
 constexpr size_t GetChunkSize(size_t total_amount, size_t num_chunks, size_t chunk_index)
 {
+    assert(num_chunks > 0);
     [[assume(num_chunks > 0)]];
+    assert(chunk_index < num_chunks);
     [[assume(chunk_index < num_chunks)]];
 
     auto result = total_amount / num_chunks;
@@ -210,6 +213,7 @@ Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* ob
     const uint32_t threads_per_block = 1024;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
     const size_t pass = offset.x() + offset.y() * 3;
+    assert(pass < kCollisionKernels.size());
     [[assume(pass < kCollisionKernels.size())]];
     kCollisionKernels[pass]<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
     return cudaGetLastError();
