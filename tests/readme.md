@@ -93,3 +93,16 @@ Ordered insertion requires no scratch allocation, additional kernel launch or se
 work is O(k squared) for a cell containing k particles, with contention on the cell's links. Use the 1m/1.5m/2m benchmark
 matrix above to assess performance after all objects have spawned. Traversal order also changes subsequent collision work,
 so compare the same settling period and measured frame interval.
+
+# Application world size and capacity
+
+The application defaults to a 1920×1040 physics world and a maximum of 2,000,000 particles.
+For larger populations, configure the world and capacity after the initial YAE configuration:
+
+```sh
+cmake -S . -B build -DVERLET_WORLD_WIDTH=3840 -DVERLET_WORLD_HEIGHT=2160 -DVERLET_MAX_OBJECTS=3000000
+yae build verlet_cuda
+```
+
+These positive-integer cache settings apply to all application translation units, including CUDA.
+Restore the defaults by setting width 1920, height 1040 and maximum objects 2000000.

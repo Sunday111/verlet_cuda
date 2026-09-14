@@ -49,7 +49,7 @@ public:
         }
     }
 
-    [[nodiscard]] size_t GetMaxObjectsCount() const { return 2'000'000; }
+    [[nodiscard]] size_t GetMaxObjectsCount() const { return constants::kMaxObjects; }
     [[nodiscard]] size_t GetObjectsCount() const { return used_objects_count_; }
     [[nodiscard]] size_t GetRemainingObjectCapacity() const
     {
@@ -75,7 +75,8 @@ private:
     klvk::Viewport viewport_{};
     klvk::RenderTransforms2d render_transforms_{};
 
-    CudaVkBuffer render_objects_buffer_;
+    std::array<CudaVkBuffer, kFramesInFlight> render_objects_buffers_;
+    size_t render_snapshot_index_ = 0;
     CudaVkBuffer appearances_buffer_;
 
     std::unique_ptr<klvk::Texture> texture_;
