@@ -64,11 +64,11 @@ __device__ void SolveCollisionBetweenObjectAndCell(
     Vec2f& object_position,
     size_t origin_cell_index)
 {
-    uint32_t another_object_index = cells[origin_cell_index].first_object_index;  // NOLINT
+    uint32_t another_object_index = __ldg(&cells[origin_cell_index].first_object_index);  // NOLINT
     while (another_object_index != kInvalidObjectIndex)
     {
         VerletObject& another_object = objects[another_object_index];  // NOLINT
-        another_object_index = another_object.next_object_in_cell;
+        another_object_index = __ldg(&another_object.next_object_in_cell);
 
         // Don't need this branch in all nine cases
         // only when colliding object with objects in the same cell
@@ -102,7 +102,7 @@ __device__ void
 SolveCollisionsFromCell(Vec2<size_t> cell, size_t grid_width, const GridCell* cells, VerletObject* objects)
 {
     const size_t cell_index = cell.y() * grid_width + cell.x();
-    uint32_t object_index = cells[cell_index].first_object_index;  // NOLINT
+    uint32_t object_index = __ldg(&cells[cell_index].first_object_index);  // NOLINT
     while (object_index != kInvalidObjectIndex)
     {
         VerletObject& object = objects[object_index];  // NOLINT
@@ -118,7 +118,7 @@ SolveCollisionsFromCell(Vec2<size_t> cell, size_t grid_width, const GridCell* ce
         SolveCollisionBetweenObjectAndCell(cells, objects, object, object_position, cell_index - grid_width - 1);
 
         object.position = object_position;
-        object_index = object.next_object_in_cell;
+        object_index = __ldg(&object.next_object_in_cell);
     }
 }
 

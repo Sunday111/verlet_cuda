@@ -1,36 +1,35 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <print>
 
 #include "../src/verlet_cuda/code/private/kernels.cu"
 
-__global__ void ResolvePair(verlet::VerletObject* objects, bool reverse, bool self_only = false)
+__global__ void ResolvePair(verlet::VerletObject* objects, const verlet::GridCell* cells, bool reverse)
 {
-    verlet::GridCell cell{.first_object_index = 0};
-    objects[0].next_object_in_cell = self_only ? verlet::kInvalidObjectIndex : 1;
-    objects[1].next_object_in_cell = verlet::kInvalidObjectIndex;
     auto& object = objects[reverse ? 1 : 0];
     auto position = object.position;
-    verlet::kernels_impl::SolveCollisionBetweenObjectAndCell<true>(&cell, objects, object, position, 0);
+    verlet::kernels_impl::SolveCollisionBetweenObjectAndCell<true>(cells, objects, object, position, 0);
     object.position = position;
 }
 
-__global__ void ResolveCell(verlet::VerletObject* objects)
+__global__ void ResolveCell(verlet::VerletObject* objects, const verlet::GridCell* cells)
 {
-    std::array<verlet::GridCell, 25> cells{};
-    cells[12].first_object_index = 0;
-    cells[13].first_object_index = 2;
-    cells[11].first_object_index = 3;
-    cells[17].first_object_index = 4;
-    cells[7].first_object_index = 5;
-    objects[0].next_object_in_cell = 1;
-    verlet::kernels_impl::SolveCollisionsFromCell({2, 2}, 5, cells.data(), objects);
+    verlet::kernels_impl::SolveCollisionsFromCell({2, 2}, 5, cells, objects);
 }
 
 int main()
 {
     verlet::VerletObject* objects = nullptr;
     if (cudaMallocManaged(&objects, 6 * sizeof(*objects)) != cudaSuccess) return 1;
+    verlet::GridCell* cells = nullptr;
+    if (cudaMallocManaged(&cells, 25 * sizeof(*cells)) != cudaSuccess)
+    {
+        cudaFree(objects);
+        return 1;
+    }
+    std::fill_n(cells, 25, verlet::GridCell{});
+    cells[0].first_object_index = 0;
     bool success = true;
     for (float distance :
          {0.f,
@@ -55,9 +54,9 @@ int main()
             for (bool reverse : {false, true})
             {
                 const auto initial_separation = direction * distance;
-                objects[0] = {.position = {0.f, 0.f}};
+                objects[0] = {.position = {0.f, 0.f}, .next_object_in_cell = 1};
                 objects[1] = {.position = initial_separation};
-                ResolvePair<<<1, 1>>>(objects, reverse);
+                ResolvePair<<<1, 1>>>(objects, cells, reverse);
                 if (cudaDeviceSynchronize() != cudaSuccess) return 1;
                 const auto separation = objects[1].position - objects[0].position;
                 const auto midpoint_error = objects[0].position + objects[1].position - initial_separation;
@@ -89,7 +88,7 @@ int main()
         }
     }
     objects[0] = {.position = {2.f, 3.f}};
-    ResolvePair<<<1, 1>>>(objects, false, true);
+    ResolvePair<<<1, 1>>>(objects, cells, false);
     if (cudaDeviceSynchronize() != cudaSuccess) return 1;
     success &= objects[0].position == verlet::Vec2f{2.f, 3.f};
 
@@ -119,9 +118,17 @@ int main()
             expected_positions[neighbour] -= displacement;
         }
     }
-    ResolveCell<<<1, 1>>>(objects);
+    std::fill_n(cells, 25, verlet::GridCell{});
+    cells[12].first_object_index = 0;
+    cells[13].first_object_index = 2;
+    cells[11].first_object_index = 3;
+    cells[17].first_object_index = 4;
+    cells[7].first_object_index = 5;
+    objects[0].next_object_in_cell = 1;
+    ResolveCell<<<1, 1>>>(objects, cells);
     if (cudaDeviceSynchronize() != cudaSuccess)
     {
+        cudaFree(cells);
         cudaFree(objects);
         return 1;
     }
@@ -138,6 +145,7 @@ int main()
     verlet::Vec2f* previous_positions = nullptr;
     if (cudaMallocManaged(&previous_positions, 6 * sizeof(*previous_positions)) != cudaSuccess)
     {
+        cudaFree(cells);
         cudaFree(objects);
         return 1;
     }
@@ -169,6 +177,7 @@ int main()
         cudaDeviceSynchronize() != cudaSuccess)
     {
         cudaFree(previous_positions);
+        cudaFree(cells);
         cudaFree(objects);
         return 1;
     }
@@ -183,6 +192,7 @@ int main()
         success &= valid;
     }
     cudaFree(previous_positions);
+    cudaFree(cells);
     cudaFree(objects);
     std::println(
         "{}",

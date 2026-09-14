@@ -6,6 +6,8 @@ diagonal separation, conservation of the pair midpoint, touching or separated pa
 A six-particle regression exercises two origins in one cell and four neighbouring cells through the production cell solver,
 comparing every final position with an independent double-precision reference to check cached-position propagation.
 A six-particle integration regression checks separate previous-position storage, nonzero velocities, gravity and world bounds.
+Grid heads and object links are initialised before each collision kernel in GPU-accessible global storage, matching the
+production solver's read-only link lifetime.
 
 With Clang, CUDA installed in `/opt/cuda`, and the dependencies fetched:
 
@@ -58,4 +60,5 @@ checked for finiteness and world bounds; these checks do not replace the collisi
 state once, advances 120 untimed frames, and measures consecutive simulation frames without resetting or spawning.
 The sample count controls how many subsequent frames are measured. This mode excludes allocation and spawning costs
 and includes changes in collision work as the existing particles move. Compare the same frame interval between builds.
-See [the steady-state investigation](steady_state.md) for measurements with separate previous-position storage.
+See [the steady-state investigation](steady_state.md) for measurements with separate previous-position storage and
+[the read-only link investigation](read_only_links.md) for collision cache measurements.
