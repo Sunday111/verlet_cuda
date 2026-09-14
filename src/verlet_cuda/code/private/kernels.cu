@@ -211,7 +211,7 @@ Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* ob
     const uint32_t threads_per_block = 1024;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
     const size_t pass = offset.x() + offset.y() * 3;
-    if (pass >= kCollisionKernels.size()) return cudaErrorInvalidValue;
+    [[assume(pass < kCollisionKernels.size())]];
     kCollisionKernels[pass]<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
     return cudaGetLastError();
 }
