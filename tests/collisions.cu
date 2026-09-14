@@ -144,8 +144,8 @@ int main()
     const std::array integration_positions{
         verlet::Vec2f{0.f, 0.f},
         verlet::Vec2f{3.f, 4.f},
-        verlet::Vec2f{959.f, 519.f},
-        verlet::Vec2f{-959.f, -519.f},
+        verlet::constants::kInitialCorner - 1.f,
+        -verlet::constants::kInitialCorner + 1.f,
         verlet::Vec2f{900.f, 0.f},
         verlet::Vec2f{0.f, 500.f}};
     const auto bounds = verlet::constants::kWorldRange.Enlarged(-2.f);
