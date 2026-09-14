@@ -11,7 +11,7 @@
 #endif
 
 #ifndef VERLET_MAX_OBJECTS
-#define VERLET_MAX_OBJECTS 2000000
+#define VERLET_MAX_OBJECTS 4000000
 #endif
 
 namespace verlet
