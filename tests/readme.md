@@ -37,8 +37,7 @@ The arguments are particle count (`100000`, `1000000`, `1500000`, or `2000000`),
 1–2 million particles; the 100k case is available for smaller checks. Run 1m, 1.5m and 2m with all four scenes and all three modes
 before adopting a kernel optimisation. Repeat baseline and candidate runs in alternating order to expose clock and
 temperature drift; compare the distribution of samples, not just the fastest result. GPU identity goes to stderr and individual CUDA-event
-measurements in milliseconds go to stdout as CSV. See [the performance investigation](performance.md) for candidate changes
-and generated-code observations.
+measurements in milliseconds go to stdout as CSV.
 
 The seeded sparse scene distributes particles across most of the world; its density rises with particle count. The dense
 scene uses 1.5 particles per square world unit. The regular lattice uses `ceil(sqrt(locations * 1.83))` columns and enough
@@ -58,4 +57,3 @@ checked for finiteness and world bounds; these checks do not replace the collisi
 state once, advances 120 untimed frames, and measures consecutive simulation frames without resetting or spawning.
 The sample count controls how many subsequent frames are measured. This mode excludes allocation and spawning costs
 and includes changes in collision work as the existing particles move. Compare the same frame interval between builds.
-See [the steady-state investigation](steady_state.md) for measurements with separate previous-position storage.
