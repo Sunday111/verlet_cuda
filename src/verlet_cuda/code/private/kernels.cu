@@ -180,6 +180,19 @@ __global__ void UpdatePositions(
 
 namespace verlet
 {
+namespace
+{
+constexpr std::array kCollisionKernels{
+    kernels_impl::SolveCollisions_ManyRows<0>,
+    kernels_impl::SolveCollisions_ManyRows<1>,
+    kernels_impl::SolveCollisions_ManyRows<2>,
+    kernels_impl::SolveCollisions_ManyRows<3>,
+    kernels_impl::SolveCollisions_ManyRows<4>,
+    kernels_impl::SolveCollisions_ManyRows<5>,
+    kernels_impl::SolveCollisions_ManyRows<6>,
+    kernels_impl::SolveCollisions_ManyRows<7>,
+    kernels_impl::SolveCollisions_ManyRows<8>};
+}
 
 cudaError_t Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects)
 {
@@ -197,19 +210,9 @@ Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* ob
     const size_t num_jobs = sparse_grid_size.x() * sparse_grid_size.y();
     const uint32_t threads_per_block = 1024;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
-    static constexpr std::array kernels{
-        kernels_impl::SolveCollisions_ManyRows<0>,
-        kernels_impl::SolveCollisions_ManyRows<1>,
-        kernels_impl::SolveCollisions_ManyRows<2>,
-        kernels_impl::SolveCollisions_ManyRows<3>,
-        kernels_impl::SolveCollisions_ManyRows<4>,
-        kernels_impl::SolveCollisions_ManyRows<5>,
-        kernels_impl::SolveCollisions_ManyRows<6>,
-        kernels_impl::SolveCollisions_ManyRows<7>,
-        kernels_impl::SolveCollisions_ManyRows<8>};
     const size_t pass = offset.x() + offset.y() * 3;
-    if (pass >= kernels.size()) return cudaErrorInvalidValue;
-    kernels[pass]<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+    if (pass >= kCollisionKernels.size()) return cudaErrorInvalidValue;
+    kCollisionKernels[pass]<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
     return cudaGetLastError();
 }
 
