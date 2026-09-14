@@ -1,7 +1,6 @@
 #include <cuda_runtime.h>
 
 #include <array>
-#include <cassert>
 #include <cuda/atomic>
 #include <limits>
 
@@ -12,8 +11,8 @@ namespace verlet::kernels_impl
 
 constexpr size_t GetChunkSize(size_t total_amount, size_t num_chunks, size_t chunk_index)
 {
-    assert(num_chunks > 0);
-    assert(chunk_index < num_chunks);
+    [[assume(num_chunks > 0)]];
+    [[assume(chunk_index < num_chunks)]];
 
     auto result = total_amount / num_chunks;
     if (auto remainder = total_amount % num_chunks; chunk_index < remainder)
