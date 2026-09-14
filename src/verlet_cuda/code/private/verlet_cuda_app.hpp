@@ -75,7 +75,8 @@ private:
     klvk::Viewport viewport_{};
     klvk::RenderTransforms2d render_transforms_{};
 
-    CudaVkBuffer render_objects_buffer_;
+    std::array<CudaVkBuffer, kFramesInFlight> render_objects_buffers_;
+    size_t render_snapshot_index_ = 0;
     CudaVkBuffer appearances_buffer_;
 
     std::unique_ptr<klvk::Texture> texture_;
