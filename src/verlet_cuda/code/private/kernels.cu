@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 
 #include <cassert>
+#include <cuda/atomic>
 #include <limits>
 
 #include "kernels.hpp"
@@ -53,7 +54,17 @@ __global__ void PopulateGrid(GridCell* cells, VerletObject* objects, size_t num_
 
     VerletObject& object = objects[object_index];
     const auto cell_index = GridCell::LocationToCellIndex(object.position);
-    object.next_object_in_cell = atomicExch(&cells[cell_index].first_object_index, object_index);
+    object.next_object_in_cell = kInvalidObjectIndex;
+    auto* link = &cells[cell_index].first_object_index;
+    uint32_t inserting = static_cast<uint32_t>(object_index);
+    using AtomicLink = cuda::atomic_ref<uint32_t, cuda::thread_scope_device>;
+    while (true)
+    {
+        const uint32_t previous = AtomicLink{*link}.fetch_min(inserting, cuda::memory_order_acq_rel);
+        if (previous == kInvalidObjectIndex) break;
+        link = &objects[min(previous, inserting)].next_object_in_cell;
+        inserting = max(previous, inserting);
+    }
 }
 
 template <bool check_for_self_collision = false>
@@ -122,14 +133,13 @@ SolveCollisionsFromCell(Vec2<size_t> cell, size_t grid_width, const GridCell* ce
     }
 }
 
-__global__ void SolveCollisions_ManyRows(
-    edt::Vec2<size_t> offset,
-    edt::Vec2<size_t> grid_size,
-    const GridCell* cells,
-    VerletObject* objects)
+template <size_t pass>
+__global__ void SolveCollisions_ManyRows(const GridCell* cells, VerletObject* objects)
 {
+    constexpr Vec2<size_t> offset{pass % 3, pass / 3};
+    constexpr auto grid_size = constants::kGridSize;
+    constexpr auto sparse_grid_size = GetChunkSize2D(grid_size - 2, {3, 3}, offset);
     const size_t job_index = threadIdx.x + blockIdx.x * blockDim.x;
-    const auto sparse_grid_size = kernels_impl::GetChunkSize2D(grid_size - 2, {3, 3}, offset);
     const Vec2<size_t> sparse_grid_cell{
         Vec2<size_t>{job_index % sparse_grid_size.x(), job_index / sparse_grid_size.x()}};
     const auto cell = sparse_grid_cell * 3 + offset + 1;
@@ -172,6 +182,7 @@ namespace verlet
 
 cudaError_t Kernels::PopulateGrid(cudaStream_t& stream, GridCell* cells, VerletObject* objects, size_t num_objects)
 {
+    if (num_objects == 0) return cudaSuccess;
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
     kernels_impl::PopulateGrid<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects, num_objects);
@@ -185,11 +196,38 @@ Kernels::SolveCollisions(cudaStream_t& stream, GridCell* cells, VerletObject* ob
     const size_t num_jobs = sparse_grid_size.x() * sparse_grid_size.y();
     const uint32_t threads_per_block = 1024;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_jobs) + threads_per_block - 1) / threads_per_block;
-    kernels_impl::SolveCollisions_ManyRows<<<num_blocks, threads_per_block, 0, stream>>>(
-        offset,
-        constants::kGridSize,
-        cells,
-        objects);
+    switch (offset.x() + offset.y() * 3)
+    {
+    case 0:
+        kernels_impl::SolveCollisions_ManyRows<0><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 1:
+        kernels_impl::SolveCollisions_ManyRows<1><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 2:
+        kernels_impl::SolveCollisions_ManyRows<2><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 3:
+        kernels_impl::SolveCollisions_ManyRows<3><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 4:
+        kernels_impl::SolveCollisions_ManyRows<4><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 5:
+        kernels_impl::SolveCollisions_ManyRows<5><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 6:
+        kernels_impl::SolveCollisions_ManyRows<6><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 7:
+        kernels_impl::SolveCollisions_ManyRows<7><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    case 8:
+        kernels_impl::SolveCollisions_ManyRows<8><<<num_blocks, threads_per_block, 0, stream>>>(cells, objects);
+        break;
+    default:
+        return cudaErrorInvalidValue;
+    }
     return cudaGetLastError();
 }
 

@@ -3,6 +3,13 @@
 #include "edt/math/float_range.hpp"
 #include "edt/math/matrix.hpp"
 
+#ifndef VERLET_WORLD_WIDTH
+#define VERLET_WORLD_WIDTH 1920
+#endif
+#ifndef VERLET_WORLD_HEIGHT
+#define VERLET_WORLD_HEIGHT 1040
+#endif
+
 namespace verlet
 {
 
@@ -16,7 +23,7 @@ inline constexpr size_t kGridMaxObjectsInCell = 4;
 // The size of each grid cell in world coordinates
 inline constexpr Vec2<size_t> kGridCellSize{1, 1};
 inline constexpr float kObjectRadius = 0.5f;
-inline constexpr Vec2f kInitialCorner{960, 520};
+inline constexpr Vec2f kInitialCorner{VERLET_WORLD_WIDTH * 0.5f, VERLET_WORLD_HEIGHT * 0.5f};
 inline constexpr edt::FloatRange2Df kWorldRange = edt::FloatRange2Df::FromMinMax(-kInitialCorner, kInitialCorner);
 inline constexpr auto kGridSize = 2 + kWorldRange.Extent().Cast<size_t>() / kGridCellSize;
 inline constexpr auto kGridNumCells = kGridSize.x() * kGridSize.y();

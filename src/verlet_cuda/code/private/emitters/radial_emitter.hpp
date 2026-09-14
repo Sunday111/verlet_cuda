@@ -13,7 +13,7 @@ public:
     float radius = 10.f;
     float phase_degrees = 0.f;
     float sector_degrees = 90.f;
-    float speed_factor = 10.f;
+    float speed_factor = 80.f;
 
     // Degrees per tick
     float rotation_speed = 0.f;
