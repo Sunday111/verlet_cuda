@@ -10,6 +10,10 @@
 #define VERLET_WORLD_HEIGHT 1040
 #endif
 
+#ifndef VERLET_MAX_OBJECTS
+#define VERLET_MAX_OBJECTS 2000000
+#endif
+
 namespace verlet
 {
 
@@ -19,6 +23,7 @@ namespace constants
 {
 // Maximum number of objects for a single cell
 inline constexpr size_t kGridMaxObjectsInCell = 4;
+inline constexpr size_t kMaxObjects = VERLET_MAX_OBJECTS;
 
 // The size of each grid cell in world coordinates
 inline constexpr Vec2<size_t> kGridCellSize{1, 1};

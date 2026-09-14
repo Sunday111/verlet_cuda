@@ -49,7 +49,7 @@ public:
         }
     }
 
-    [[nodiscard]] size_t GetMaxObjectsCount() const { return 2'000'000; }
+    [[nodiscard]] size_t GetMaxObjectsCount() const { return constants::kMaxObjects; }
     [[nodiscard]] size_t GetObjectsCount() const { return used_objects_count_; }
     [[nodiscard]] size_t GetRemainingObjectCapacity() const
     {
