@@ -418,17 +418,31 @@ void VerletCudaApp::Tick()
             {
                 CheckResult(
                     cudaMemsetAsync(grid_cells_.get(), 255, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_));
-                CheckResult(
-                    Kernels::PopulateGrid(
-                        cuda_stream_,
-                        grid_cells_.get(),
-                        use_cache && (substep != 0 || collision_cache_frame_ != 0) ? cache.objects
-                                                                                   : device_objects.data(),
-                        device_objects.size(),
-                        use_cache && (substep != 0 || collision_cache_frame_ != 0) ? cache.original_indices : nullptr,
-                        use_cache ? &cache.metadata->last_occupied_cell : nullptr),
-                    "PopulateGrid launch");
-
+                if (substep == 0)
+                {
+                    CheckResult(
+                        Kernels::PopulateGrid(
+                            cuda_stream_,
+                            grid_cells_.get(),
+                            use_cache && collision_cache_frame_ != 0 ? cache.objects : device_objects.data(),
+                            device_objects.size(),
+                            use_cache && collision_cache_frame_ != 0 ? cache.original_indices : nullptr,
+                            use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                        "PopulateGrid launch");
+                }
+                else
+                {
+                    CheckResult(
+                        Kernels::UpdateAndPopulateGrid(
+                            cuda_stream_,
+                            grid_cells_.get(),
+                            use_cache ? cache.objects : device_objects.data(),
+                            used_objects_count_,
+                            use_cache ? cache.previous_positions : previous_positions_.get(),
+                            use_cache ? cache.original_indices : nullptr,
+                            use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                        "Integrate and populate grid");
+                }
                 if (use_cache && substep == 0 && collision_cache_frame_ == 0)
                     CheckResult(
                         Kernels::CacheGrid(
@@ -455,14 +469,14 @@ void VerletCudaApp::Tick()
                             offset_y);
                     }
                 }
-                CheckResult(
-                    Kernels::UpdatePositions(
-                        cuda_stream_,
-                        used_objects_count_,
-                        use_cache ? cache.objects : device_objects.data(),
-                        use_cache ? cache.previous_positions : previous_positions_.get()),
-                    "UpdatePositions launch");
             }
+            CheckResult(
+                Kernels::UpdatePositions(
+                    cuda_stream_,
+                    used_objects_count_,
+                    use_cache ? cache.objects : device_objects.data(),
+                    use_cache ? cache.previous_positions : previous_positions_.get()),
+                "UpdatePositions launch");
 
             if (use_cache)
             {

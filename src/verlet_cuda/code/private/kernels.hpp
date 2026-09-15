@@ -55,6 +55,14 @@ public:
         size_t num_objects,
         const uint32_t* original_indices = nullptr,
         uint32_t* last_occupied_cell = nullptr);
+    [[nodiscard]] static cudaError_t UpdateAndPopulateGrid(
+        cudaStream_t& stream,
+        GridCell* cells,
+        VerletObject* objects,
+        size_t num_objects,
+        Vec2f* previous_positions,
+        const uint32_t* original_indices = nullptr,
+        uint32_t* last_occupied_cell = nullptr);
     [[nodiscard]] static cudaError_t SolveCollisions(
         cudaStream_t& stream,
         GridCell* cells,

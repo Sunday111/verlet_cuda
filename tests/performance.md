@@ -79,3 +79,18 @@ regression passed 24 GPU/CPU grid comparisons and seven bitwise replays. The CPU
 Baseline and final kernel states matched for packed populations of one, one-and-a-half, two and four million particles,
 and shuffled bursts of three and four million particles. Forced-cache comparisons with 100,000 coincident particles
 also matched in both frame and sweep modes. The application uses the direct backend below three million particles.
+
+## Further optimisation attempts
+
+The next measurements start from the spatial-cache implementation above. The workload, compiler flags and fixed frame
+intervals remain the same. Each retained approach has its own commit.
+
+### Fused integration and grid population
+
+The first substep builds the grid normally. Each subsequent substep integrates positions while building its grid, and a
+final integration follows the last collision sweep. This preserves all eight integrations and their arithmetic order,
+while removing seven separate integration launches and repeated position reads.
+
+Two alternating kernel comparisons measured 14.538 ms for the starting implementation and 14.324 ms for fusion, a 1.5%
+reduction. Both produced `b338dde62d48c939`. A fresh 300-frame application comparison measured 18.147 ms versus 17.790 ms,
+and its klvk captures matched byte for byte. These are mean throughput results; they do not establish stable 60 FPS.

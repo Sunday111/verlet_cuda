@@ -256,25 +256,41 @@ int main(int argc, char** argv)
         for (size_t substep = 0; substep < verlet::constants::kNumSubSteps; ++substep)
         {
             Check(cudaMemsetAsync(cells, 255, grid_bytes, stream), "Clear grid");
-            Check(
-                verlet::Kernels::PopulateGrid(
-                    stream,
-                    cells,
-                    use_cache && (substep != 0 || cache_frame != 0) ? cache.objects : objects,
-                    count,
-                    use_cache && (substep != 0 || cache_frame != 0) ? cache.original_indices : nullptr,
-                    use_cache ? &cache.metadata->last_occupied_cell : nullptr),
-                "Launch grid population");
+            if (substep == 0)
+            {
+                Check(
+                    verlet::Kernels::PopulateGrid(
+                        stream,
+                        cells,
+                        use_cache && cache_frame != 0 ? cache.objects : objects,
+                        count,
+                        use_cache && cache_frame != 0 ? cache.original_indices : nullptr,
+                        use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                    "Launch grid population");
+            }
+            else
+            {
+                Check(
+                    verlet::Kernels::UpdateAndPopulateGrid(
+                        stream,
+                        cells,
+                        use_cache ? cache.objects : objects,
+                        count,
+                        use_cache ? cache.previous_positions : previous_positions,
+                        cache.original_indices,
+                        use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                    "Integrate and populate grid");
+            }
             if (substep == 0 && cache_frame == 0) build_cache();
             sweep();
-            Check(
-                verlet::Kernels::UpdatePositions(
-                    stream,
-                    count,
-                    use_cache ? cache.objects : objects,
-                    use_cache ? cache.previous_positions : previous_positions),
-                "Launch position update");
         }
+        Check(
+            verlet::Kernels::UpdatePositions(
+                stream,
+                count,
+                use_cache ? cache.objects : objects,
+                use_cache ? cache.previous_positions : previous_positions),
+            "Launch position update");
         cache_frame = (cache_frame + 1) % verlet::constants::kCollisionCacheFrames;
         if (use_cache)
             Check(

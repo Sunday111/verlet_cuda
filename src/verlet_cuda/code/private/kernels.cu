@@ -52,15 +52,41 @@ static_assert(GetChunkSize2D({602, 602}, {3, 3}, {0, 0}) == Vec2<size_t>{201, 20
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {1, 1}) == Vec2<size_t>{201, 201});
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {2, 2}) == Vec2<size_t>{200, 200});
 
-template <bool cached = false>
+__device__ void UpdatePosition(Vec2f& position, Vec2f& old_position, Vec2f gravity, float velocity_damping)
+{
+    constexpr auto constraint_with_margin = constants::kWorldRange.Enlarged(-2.f);
+    constexpr float dt_2 = constants::kTimeSubStepDurationSeconds * constants::kTimeSubStepDurationSeconds;
+    const auto last_update_move = position - old_position;
+
+    // Save current position
+    old_position = position;
+
+    // Perform Verlet integration
+    position += last_update_move + (gravity - last_update_move * velocity_damping) * dt_2;
+
+    // Constraint
+    position = constraint_with_margin.Clamp(position);
+}
+
+template <bool cached = false, bool integrate = false>
 __global__ void PopulateGrid(
     GridCell* cells,
     VerletObject* objects,
     size_t num_objects,
     const uint32_t* original_indices = nullptr,
-    uint32_t* last_occupied_cell = nullptr)
+    uint32_t* last_occupied_cell = nullptr,
+    Vec2f* previous_positions = nullptr)
 {
     const size_t object_index = threadIdx.x + blockIdx.x * blockDim.x;
+    if constexpr (integrate)
+    {
+        if (object_index < num_objects)
+            UpdatePosition(
+                objects[object_index].position,
+                previous_positions[object_index],
+                constants::kGravity,
+                constants::kVelocityDamping);
+    }
     const auto cell_index =
         object_index < num_objects ? GridCell::LocationToCellIndex(objects[object_index].position) : 0;
     if (last_occupied_cell)
@@ -268,29 +294,12 @@ __global__ void UpdatePositions(
     size_t num_objects,
     VerletObject* objects,
     Vec2f* previous_positions,
-    edt::Vec2f gravity,
+    Vec2f gravity,
     float velocity_damping)
 {
-    constexpr float margin = 2.0f;
-    constexpr auto constraint_with_margin = constants::kWorldRange.Enlarged(-margin);
-    constexpr float dt_2 = constants::kTimeSubStepDurationSeconds * constants::kTimeSubStepDurationSeconds;
-
     const size_t object_index = threadIdx.x + blockIdx.x * blockDim.x;
     if (object_index >= num_objects) return;
-
-    auto& position = objects[object_index].position;
-    auto& old_position = previous_positions[object_index];
-
-    const auto last_update_move = position - old_position;
-
-    // Save current position
-    old_position = position;
-
-    // Perform Verlet integration
-    position += last_update_move + (gravity - last_update_move * velocity_damping) * dt_2;
-
-    // Constraint
-    position = constraint_with_margin.Clamp(position);
+    UpdatePosition(objects[object_index].position, previous_positions[object_index], gravity, velocity_damping);
 }
 __global__ void CacheCells(
     verlet::GridCell* grid,
@@ -369,6 +378,38 @@ constexpr std::array kCollisionKernels{
     kernels_impl::SolveCollisions_ManyRows<8, cached>};
 }
 
+namespace
+{
+template <bool integrate>
+cudaError_t LaunchPopulateGrid(
+    cudaStream_t& stream,
+    GridCell* cells,
+    VerletObject* objects,
+    size_t num_objects,
+    const uint32_t* original_indices,
+    uint32_t* last_occupied_cell,
+    Vec2f* previous_positions)
+{
+    if (num_objects == 0) return cudaSuccess;
+    if (last_occupied_cell)
+        if (const auto result = cudaMemsetAsync(last_occupied_cell, 0, sizeof(uint32_t), stream); result != cudaSuccess)
+            return result;
+    const uint32_t threads_per_block = 256;
+    const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
+    const auto kernel =
+        original_indices ? kernels_impl::PopulateGrid<true, integrate> : kernels_impl::PopulateGrid<false, integrate>;
+    kernel<<<num_blocks, threads_per_block, 0, stream>>>(
+        cells,
+        objects,
+        num_objects,
+        original_indices,
+        last_occupied_cell,
+        previous_positions);
+    return cudaGetLastError();
+}
+
+}  // namespace
+
 cudaError_t Kernels::PopulateGrid(
     cudaStream_t& stream,
     GridCell* cells,
@@ -377,20 +418,33 @@ cudaError_t Kernels::PopulateGrid(
     const uint32_t* original_indices,
     uint32_t* last_occupied_cell)
 {
-    if (num_objects == 0) return cudaSuccess;
-    if (last_occupied_cell)
-        if (const auto result = cudaMemsetAsync(last_occupied_cell, 0, sizeof(uint32_t), stream); result != cudaSuccess)
-            return result;
-    const uint32_t threads_per_block = 256;
-    const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
-    const auto kernel = original_indices ? kernels_impl::PopulateGrid<true> : kernels_impl::PopulateGrid<false>;
-    kernel<<<num_blocks, threads_per_block, 0, stream>>>(
+    return LaunchPopulateGrid<false>(
+        stream,
         cells,
         objects,
         num_objects,
         original_indices,
-        last_occupied_cell);
-    return cudaGetLastError();
+        last_occupied_cell,
+        nullptr);
+}
+
+cudaError_t Kernels::UpdateAndPopulateGrid(
+    cudaStream_t& stream,
+    GridCell* cells,
+    VerletObject* objects,
+    size_t num_objects,
+    Vec2f* previous_positions,
+    const uint32_t* original_indices,
+    uint32_t* last_occupied_cell)
+{
+    return LaunchPopulateGrid<true>(
+        stream,
+        cells,
+        objects,
+        num_objects,
+        original_indices,
+        last_occupied_cell,
+        previous_positions);
 }
 
 cudaError_t Kernels::SolveCollisions(
