@@ -242,6 +242,14 @@ std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_si
         CheckResult(cudaStreamSynchronize(cuda_stream_));
     }
 
+    if (new_capacity >= constants::kCollisionCacheMinObjects)
+    {
+        collision_previous_positions_ = MakeCudaArray<Vec2f>(new_capacity, cuda_stream_);
+        collision_objects_ = MakeCudaArray<VerletObject>(new_capacity, cuda_stream_);
+        collision_original_indices_ = MakeCudaArray<uint32_t>(new_capacity, cuda_stream_);
+        if (!collision_metadata_) collision_metadata_ = MakeCudaArray<CollisionCacheMetadata>(1, cuda_stream_);
+    }
+
     simulation_objects_ = std::move(new_simulation_objects);
     previous_positions_ = std::move(new_previous_positions);
     render_objects_buffers_ = std::move(new_buffers);
@@ -261,6 +269,22 @@ void VerletCudaApp::SpawnPendingObjects()
     GetDeviceContext().WaitIdle();
     CheckResult(cudaStreamSynchronize(cuda_stream_));
 
+    if (collision_cache_frame_ != 0)
+    {
+        const CollisionCache cache{
+            collision_objects_.get(),
+            collision_original_indices_.get(),
+            collision_metadata_.get(),
+            collision_previous_positions_.get()};
+        CheckResult(
+            Kernels::RestorePositions(
+                cuda_stream_,
+                used_objects_count_,
+                simulation_objects_.get(),
+                previous_positions_.get(),
+                cache));
+        collision_cache_frame_ = 0;
+    }
     const size_t new_count = used_objects_count_ + pending_objects_.size();
     const std::span<VerletObject> device_objects = ReserveAndGetDevicePtr(new_count);
     const auto device_appearances = appearances_buffer_.GetDeviceSpan<VerletAppearance>();
@@ -384,6 +408,12 @@ void VerletCudaApp::Tick()
 
             const std::span<VerletObject> device_objects{simulation_objects_.get(), used_objects_count_};
 
+            const bool use_cache = used_objects_count_ >= constants::kCollisionCacheMinObjects;
+            const CollisionCache cache{
+                collision_objects_.get(),
+                collision_original_indices_.get(),
+                collision_metadata_.get(),
+                collision_previous_positions_.get()};
             for (size_t substep = 0; substep != constants::kNumSubSteps; ++substep)
             {
                 CheckResult(
@@ -392,10 +422,22 @@ void VerletCudaApp::Tick()
                     Kernels::PopulateGrid(
                         cuda_stream_,
                         grid_cells_.get(),
-                        device_objects.data(),
-                        device_objects.size()),
+                        use_cache && (substep != 0 || collision_cache_frame_ != 0) ? cache.objects
+                                                                                   : device_objects.data(),
+                        device_objects.size(),
+                        use_cache && (substep != 0 || collision_cache_frame_ != 0) ? cache.original_indices : nullptr,
+                        use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                     "PopulateGrid launch");
 
+                if (use_cache && substep == 0 && collision_cache_frame_ == 0)
+                    CheckResult(
+                        Kernels::CacheGrid(
+                            cuda_stream_,
+                            grid_cells_.get(),
+                            device_objects.data(),
+                            previous_positions_.get(),
+                            cache),
+                        "CacheGrid launch");
                 for (size_t offset_y = 0; offset_y != 3; ++offset_y)
                 {
                     for (size_t offset_x = 0; offset_x != 3; ++offset_x)
@@ -404,8 +446,10 @@ void VerletCudaApp::Tick()
                             Kernels::SolveCollisions(
                                 cuda_stream_,
                                 grid_cells_.get(),
-                                device_objects.data(),
-                                {offset_x, offset_y}),
+                                use_cache ? cache.objects : device_objects.data(),
+                                {offset_x, offset_y},
+                                use_cache ? cache.original_indices : nullptr,
+                                use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                             "SolveCollisions launch at offset ({}, {})",
                             offset_x,
                             offset_y);
@@ -415,11 +459,23 @@ void VerletCudaApp::Tick()
                     Kernels::UpdatePositions(
                         cuda_stream_,
                         used_objects_count_,
-                        device_objects.data(),
-                        previous_positions_.get()),
+                        use_cache ? cache.objects : device_objects.data(),
+                        use_cache ? cache.previous_positions : previous_positions_.get()),
                     "UpdatePositions launch");
             }
 
+            if (use_cache)
+            {
+                collision_cache_frame_ = (collision_cache_frame_ + 1) % constants::kCollisionCacheFrames;
+                CheckResult(
+                    Kernels::RestorePositions(
+                        cuda_stream_,
+                        used_objects_count_,
+                        device_objects.data(),
+                        collision_cache_frame_ == 0 ? previous_positions_.get() : nullptr,
+                        cache),
+                    "RestorePositions launch");
+            }
             CudaMemcpy(
                 device_objects,
                 render_objects_buffers_.at(render_snapshot_index_)

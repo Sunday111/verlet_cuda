@@ -91,6 +91,11 @@ private:
     CudaPtr<GridCell> grid_cells_;
     CudaPtr<Vec2f> previous_positions_;
     CudaPtr<VerletObject> simulation_objects_;
+    CudaPtr<VerletObject> collision_objects_;
+    CudaPtr<uint32_t> collision_original_indices_;
+    CudaPtr<CollisionCacheMetadata> collision_metadata_;
+    CudaPtr<Vec2f> collision_previous_positions_;
+    size_t collision_cache_frame_ = 0;
 
     std::vector<VerletObject> pending_objects_;
     std::vector<Vec2f> pending_previous_positions_;
