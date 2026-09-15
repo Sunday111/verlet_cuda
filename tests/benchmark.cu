@@ -189,7 +189,8 @@ int main(int argc, char** argv)
     if (use_cache)
     {
         Check(cudaMalloc(&cache.previous_positions, previous_bytes), "Allocate cached previous positions");
-        Check(cudaMalloc(&cache.objects, object_bytes), "Allocate collision objects");
+        Check(cudaMalloc(&cache.positions, previous_bytes), "Allocate collision objects");
+        Check(cudaMalloc(&cache.links, count * sizeof(uint32_t)), "Allocate cached links");
         Check(cudaMalloc(&cache.original_indices, count * sizeof(uint32_t)), "Allocate collision indices");
         Check(cudaMalloc(&cache.metadata, sizeof(verlet::CollisionCacheMetadata)), "Allocate collision counter");
     }
@@ -230,9 +231,8 @@ int main(int argc, char** argv)
                     verlet::Kernels::SolveCollisions(
                         stream,
                         cells,
-                        use_cache ? cache.objects : objects,
+                        use_cache ? cache.GetObjects() : objects,
                         {x, y},
-                        cache.original_indices,
                         use_cache && mode != "sweep" ? &cache.metadata->last_occupied_cell : nullptr),
                     "Launch collision sweep");
             }
@@ -262,9 +262,8 @@ int main(int argc, char** argv)
                     verlet::Kernels::PopulateGrid(
                         stream,
                         cells,
-                        use_cache && cache_frame != 0 ? cache.objects : objects,
+                        use_cache && cache_frame != 0 ? cache.GetObjects() : objects,
                         count,
-                        use_cache && cache_frame != 0 ? cache.original_indices : nullptr,
                         use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                     "Launch grid population");
             }
@@ -274,10 +273,9 @@ int main(int argc, char** argv)
                     verlet::Kernels::UpdateAndPopulateGrid(
                         stream,
                         cells,
-                        use_cache ? cache.objects : objects,
+                        use_cache ? cache.GetObjects() : objects,
                         count,
                         use_cache ? cache.previous_positions : previous_positions,
-                        cache.original_indices,
                         use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                     "Integrate and populate grid");
             }
@@ -288,7 +286,7 @@ int main(int argc, char** argv)
             verlet::Kernels::UpdatePositions(
                 stream,
                 count,
-                use_cache ? cache.objects : objects,
+                use_cache ? cache.GetObjects() : objects,
                 use_cache ? cache.previous_positions : previous_positions),
             "Launch position update");
         cache_frame = (cache_frame + 1) % verlet::constants::kCollisionCacheFrames;
@@ -370,7 +368,8 @@ int main(int argc, char** argv)
     Check(cudaFree(previous_positions), "Free previous positions");
     Check(cudaFree(seed_previous_positions), "Free seed previous positions");
     Check(cudaFree(cache.previous_positions), "Free cached previous positions");
-    Check(cudaFree(cache.objects), "Free collision objects");
+    Check(cudaFree(cache.links), "Free cached links");
+    Check(cudaFree(cache.positions), "Free collision objects");
     Check(cudaFree(cache.original_indices), "Free collision indices");
     Check(cudaFree(cache.metadata), "Free collision counter");
     Check(cudaFree(objects), "Free objects");

@@ -245,7 +245,8 @@ std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_si
     if (new_capacity >= constants::kCollisionCacheMinObjects)
     {
         collision_previous_positions_ = MakeCudaArray<Vec2f>(new_capacity, cuda_stream_);
-        collision_objects_ = MakeCudaArray<VerletObject>(new_capacity, cuda_stream_);
+        collision_positions_ = MakeCudaArray<Vec2f>(new_capacity, cuda_stream_);
+        collision_links_ = MakeCudaArray<uint32_t>(new_capacity, cuda_stream_);
         collision_original_indices_ = MakeCudaArray<uint32_t>(new_capacity, cuda_stream_);
         if (!collision_metadata_) collision_metadata_ = MakeCudaArray<CollisionCacheMetadata>(1, cuda_stream_);
     }
@@ -272,7 +273,8 @@ void VerletCudaApp::SpawnPendingObjects()
     if (collision_cache_frame_ != 0)
     {
         const CollisionCache cache{
-            collision_objects_.get(),
+            collision_positions_.get(),
+            collision_links_.get(),
             collision_original_indices_.get(),
             collision_metadata_.get(),
             collision_previous_positions_.get()};
@@ -410,7 +412,8 @@ void VerletCudaApp::Tick()
 
             const bool use_cache = used_objects_count_ >= constants::kCollisionCacheMinObjects;
             const CollisionCache cache{
-                collision_objects_.get(),
+                collision_positions_.get(),
+                collision_links_.get(),
                 collision_original_indices_.get(),
                 collision_metadata_.get(),
                 collision_previous_positions_.get()};
@@ -424,9 +427,8 @@ void VerletCudaApp::Tick()
                         Kernels::PopulateGrid(
                             cuda_stream_,
                             grid_cells_.get(),
-                            use_cache && collision_cache_frame_ != 0 ? cache.objects : device_objects.data(),
+                            use_cache && collision_cache_frame_ != 0 ? cache.GetObjects() : device_objects.data(),
                             device_objects.size(),
-                            use_cache && collision_cache_frame_ != 0 ? cache.original_indices : nullptr,
                             use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                         "PopulateGrid launch");
                 }
@@ -436,10 +438,9 @@ void VerletCudaApp::Tick()
                         Kernels::UpdateAndPopulateGrid(
                             cuda_stream_,
                             grid_cells_.get(),
-                            use_cache ? cache.objects : device_objects.data(),
+                            use_cache ? cache.GetObjects() : device_objects.data(),
                             used_objects_count_,
                             use_cache ? cache.previous_positions : previous_positions_.get(),
-                            use_cache ? cache.original_indices : nullptr,
                             use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                         "Integrate and populate grid");
                 }
@@ -460,9 +461,8 @@ void VerletCudaApp::Tick()
                             Kernels::SolveCollisions(
                                 cuda_stream_,
                                 grid_cells_.get(),
-                                use_cache ? cache.objects : device_objects.data(),
+                                use_cache ? cache.GetObjects() : device_objects.data(),
                                 {offset_x, offset_y},
-                                use_cache ? cache.original_indices : nullptr,
                                 use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                             "SolveCollisions launch at offset ({}, {})",
                             offset_x,
@@ -474,7 +474,7 @@ void VerletCudaApp::Tick()
                 Kernels::UpdatePositions(
                     cuda_stream_,
                     used_objects_count_,
-                    use_cache ? cache.objects : device_objects.data(),
+                    use_cache ? cache.GetObjects() : device_objects.data(),
                     use_cache ? cache.previous_positions : previous_positions_.get()),
                 "UpdatePositions launch");
 

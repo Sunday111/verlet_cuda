@@ -30,6 +30,22 @@ public:
     uint32_t first_object_index = kInvalidObjectIndex;
 };
 
+struct ObjectStorage
+{
+    __host__ __device__ constexpr ObjectStorage(VerletObject* objects) : interleaved(objects) {}
+    __host__ __device__ constexpr ObjectStorage(Vec2f* positions_array, uint32_t* links_array, const uint32_t* indices)
+        : positions(positions_array),
+          links(links_array),
+          original_indices(indices)
+    {
+    }
+
+    VerletObject* interleaved = nullptr;
+    Vec2f* positions = nullptr;
+    uint32_t* links = nullptr;
+    const uint32_t* original_indices = nullptr;
+};
+
 struct CollisionCacheMetadata
 {
     uint32_t object_count;
@@ -38,37 +54,36 @@ struct CollisionCacheMetadata
 
 struct CollisionCache
 {
-    VerletObject* objects = nullptr;
+    Vec2f* positions = nullptr;
+    uint32_t* links = nullptr;
     uint32_t* original_indices = nullptr;
     CollisionCacheMetadata* metadata = nullptr;
     Vec2f* previous_positions = nullptr;
+
+    [[nodiscard]] ObjectStorage GetObjects() const { return {positions, links, original_indices}; }
 };
 
-// C++ interface to invoke cuda kernels
 class Kernels
 {
 public:
     [[nodiscard]] static cudaError_t PopulateGrid(
         cudaStream_t& stream,
         GridCell* cells,
-        VerletObject* objects,
+        ObjectStorage objects,
         size_t num_objects,
-        const uint32_t* original_indices = nullptr,
         uint32_t* last_occupied_cell = nullptr);
     [[nodiscard]] static cudaError_t UpdateAndPopulateGrid(
         cudaStream_t& stream,
         GridCell* cells,
-        VerletObject* objects,
+        ObjectStorage objects,
         size_t num_objects,
         Vec2f* previous_positions,
-        const uint32_t* original_indices = nullptr,
         uint32_t* last_occupied_cell = nullptr);
     [[nodiscard]] static cudaError_t SolveCollisions(
         cudaStream_t& stream,
         GridCell* cells,
-        VerletObject* objects,
+        ObjectStorage objects,
         edt::Vec2<size_t> offset,
-        const uint32_t* original_indices = nullptr,
         const uint32_t* last_occupied_cell = nullptr);
     [[nodiscard]] static cudaError_t CacheGrid(
         cudaStream_t stream,
@@ -83,6 +98,6 @@ public:
         Vec2f* previous_positions,
         CollisionCache cache);
     [[nodiscard]] static cudaError_t
-    UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects, Vec2f* previous_positions);
+    UpdatePositions(cudaStream_t& stream, size_t num_objects, ObjectStorage objects, Vec2f* previous_positions);
 };
 }  // namespace verlet

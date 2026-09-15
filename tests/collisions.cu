@@ -11,7 +11,7 @@ __global__ void ResolvePair(verlet::VerletObject* objects, bool reverse, bool se
     objects[1].next_object_in_cell = verlet::kInvalidObjectIndex;
     auto& object = objects[reverse ? 1 : 0];
     auto position = object.position;
-    verlet::kernels_impl::SolveCollisionBetweenObjectAndCell<true>(&cell, objects, object, position, 0);
+    verlet::kernels_impl::SolveCollisionBetweenObjectAndCell<true>(&cell, objects, reverse ? 1u : 0u, position, 0);
     object.position = position;
 }
 

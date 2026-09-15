@@ -52,6 +52,34 @@ static_assert(GetChunkSize2D({602, 602}, {3, 3}, {0, 0}) == Vec2<size_t>{201, 20
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {1, 1}) == Vec2<size_t>{201, 201});
 static_assert(GetChunkSize2D({602, 602}, {3, 3}, {2, 2}) == Vec2<size_t>{200, 200});
 
+template <bool cached>
+struct DeviceObjects
+{
+    ObjectStorage storage;
+
+    __device__ Vec2f& Position(size_t index) const
+    {
+        if constexpr (cached)
+            return storage.positions[index];
+        else
+            return storage.interleaved[index].position;
+    }
+    __device__ uint32_t& Link(size_t index) const
+    {
+        if constexpr (cached)
+            return storage.links[index];
+        else
+            return storage.interleaved[index].next_object_in_cell;
+    }
+    __device__ uint32_t OriginalIndex(uint32_t index) const
+    {
+        if constexpr (cached)
+            return storage.original_indices[index];
+        else
+            return index;
+    }
+};
+
 __device__ void UpdatePosition(Vec2f& position, Vec2f& old_position, Vec2f gravity, float velocity_damping)
 {
     constexpr auto constraint_with_margin = constants::kWorldRange.Enlarged(-2.f);
@@ -71,24 +99,24 @@ __device__ void UpdatePosition(Vec2f& position, Vec2f& old_position, Vec2f gravi
 template <bool cached = false, bool integrate = false>
 __global__ void PopulateGrid(
     GridCell* cells,
-    VerletObject* objects,
+    ObjectStorage storage,
     size_t num_objects,
-    const uint32_t* original_indices = nullptr,
     uint32_t* last_occupied_cell = nullptr,
     Vec2f* previous_positions = nullptr)
 {
+    DeviceObjects<cached> objects{storage};
     const size_t object_index = threadIdx.x + blockIdx.x * blockDim.x;
     if constexpr (integrate)
     {
         if (object_index < num_objects)
             UpdatePosition(
-                objects[object_index].position,
+                objects.Position(object_index),
                 previous_positions[object_index],
                 constants::kGravity,
                 constants::kVelocityDamping);
     }
     const auto cell_index =
-        object_index < num_objects ? GridCell::LocationToCellIndex(objects[object_index].position) : 0;
+        object_index < num_objects ? GridCell::LocationToCellIndex(objects.Position(object_index)) : 0;
     if (last_occupied_cell)
     {
         using Reduce = cub::BlockReduce<uint32_t, 256>;
@@ -100,8 +128,7 @@ __global__ void PopulateGrid(
     }
     if (object_index >= num_objects) return;
 
-    VerletObject& object = objects[object_index];
-    object.next_object_in_cell = kInvalidObjectIndex;
+    objects.Link(object_index) = kInvalidObjectIndex;
     auto* link = &cells[cell_index].first_object_index;
     uint32_t inserting = static_cast<uint32_t>(object_index);
     using AtomicLink = cuda::atomic_ref<uint32_t, cuda::thread_scope_device>;
@@ -111,7 +138,7 @@ __global__ void PopulateGrid(
         {
             AtomicLink atomic_link{*link};
             uint32_t previous = atomic_link.load(cuda::memory_order_acquire);
-            if (previous == kInvalidObjectIndex || original_indices[inserting] < original_indices[previous])
+            if (previous == kInvalidObjectIndex || objects.OriginalIndex(inserting) < objects.OriginalIndex(previous))
             {
                 if (!atomic_link.compare_exchange_weak(
                         previous,
@@ -120,19 +147,19 @@ __global__ void PopulateGrid(
                         cuda::memory_order_acquire))
                     continue;
                 if (previous == kInvalidObjectIndex) break;
-                link = &objects[inserting].next_object_in_cell;
+                link = &objects.Link(inserting);
                 inserting = previous;
             }
             else
             {
-                link = &objects[previous].next_object_in_cell;
+                link = &objects.Link(previous);
             }
         }
         else
         {
             const uint32_t previous = AtomicLink{*link}.fetch_min(inserting, cuda::memory_order_acq_rel);
             if (previous == kInvalidObjectIndex) break;
-            link = &objects[min(previous, inserting)].next_object_in_cell;
+            link = &objects.Link(min(previous, inserting));
             inserting = max(previous, inserting);
         }
     }
@@ -141,47 +168,33 @@ __global__ void PopulateGrid(
 template <bool check_for_self_collision = false, bool cached = false>
 __device__ void SolveCollisionBetweenObjectAndCell(
     const GridCell* cells,
-    VerletObject* objects,
-    VerletObject& object,
+    ObjectStorage storage,
+    uint32_t object_index,
     Vec2f& object_position,
-    size_t origin_cell_index,
-    const uint32_t* original_indices = nullptr)
+    size_t origin_cell_index)
 {
-    uint32_t another_object_index = cells[origin_cell_index].first_object_index;  // NOLINT
-    while (another_object_index != kInvalidObjectIndex)
+    DeviceObjects<cached> objects{storage};
+    uint32_t next = cells[origin_cell_index].first_object_index;
+    while (next != kInvalidObjectIndex)
     {
-        VerletObject& another_object = objects[another_object_index];  // NOLINT
-        another_object_index = another_object.next_object_in_cell;
-
-        // Don't need this branch in all nine cases
-        // only when colliding object with objects in the same cell
+        const uint32_t another_index = next;
+        next = objects.Link(another_index);
         if constexpr (check_for_self_collision)
-        {
-            // self-collision
-            if (&object == &another_object)
-            {
-                continue;
-            }
-        }
-
-        auto& another_object_position = another_object.position;
+            if (object_index == another_index) continue;
+        auto& another_object_position = objects.Position(another_index);
         const Vec2f axis = object_position - another_object_position;
         const float dist_sq = axis.SquaredLength();
         if (dist_sq < 1.0f)
         {
             const float dist = sqrt(dist_sq);
             const float delta = 0.5f - dist / 2;
-            const auto precedes = [&]
-            {
-                if constexpr (cached)
-                    return original_indices[&object - objects] < original_indices[&another_object - objects];
-                else
-                    return &object < &another_object;
-            };
-            const Vec2f col_vec = dist_sq >= std::numeric_limits<float>::min()
-                                      ? axis * (delta / dist)
-                                      : Vec2f{precedes() ? -delta : delta, 0.f};
-            const auto ac = 0.5f, bc = 0.5f;  // mass coefficients
+            const Vec2f col_vec =
+                dist_sq >= std::numeric_limits<float>::min()
+                    ? axis * (delta / dist)
+                    : Vec2f{
+                          objects.OriginalIndex(object_index) < objects.OriginalIndex(another_index) ? -delta : delta,
+                          0.f};
+            const auto ac = 0.5f, bc = 0.5f;
             object_position += ac * col_vec;
             another_object_position -= bc * col_vec;
         }
@@ -189,94 +202,73 @@ __device__ void SolveCollisionBetweenObjectAndCell(
 }
 
 template <bool cached = false>
-__device__ void SolveCollisionsFromCell(
-    Vec2<size_t> cell,
-    size_t grid_width,
-    const GridCell* cells,
-    VerletObject* objects,
-    const uint32_t* original_indices = nullptr)
+__device__ void
+SolveCollisionsFromCell(Vec2<size_t> cell, size_t grid_width, const GridCell* cells, ObjectStorage storage)
 {
+    DeviceObjects<cached> objects{storage};
     const size_t cell_index = cell.y() * grid_width + cell.x();
     uint32_t object_index = cells[cell_index].first_object_index;  // NOLINT
     while (object_index != kInvalidObjectIndex)
     {
-        VerletObject& object = objects[object_index];  // NOLINT
-        Vec2f object_position = object.position;
-        SolveCollisionBetweenObjectAndCell<true, cached>(
-            cells,
-            objects,
-            object,
-            object_position,
-            cell_index,
-            original_indices);
+        Vec2f object_position = objects.Position(object_index);
+        SolveCollisionBetweenObjectAndCell<true, cached>(cells, storage, object_index, object_position, cell_index);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index + 1,
-            original_indices);
+            cell_index + 1);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index - 1,
-            original_indices);
+            cell_index - 1);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index + grid_width,
-            original_indices);
+            cell_index + grid_width);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index + grid_width + 1,
-            original_indices);
+            cell_index + grid_width + 1);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index + grid_width - 1,
-            original_indices);
+            cell_index + grid_width - 1);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index - grid_width,
-            original_indices);
+            cell_index - grid_width);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index - grid_width + 1,
-            original_indices);
+            cell_index - grid_width + 1);
         SolveCollisionBetweenObjectAndCell<false, cached>(
             cells,
-            objects,
-            object,
+            storage,
+            object_index,
             object_position,
-            cell_index - grid_width - 1,
-            original_indices);
+            cell_index - grid_width - 1);
 
-        object.position = object_position;
-        object_index = object.next_object_in_cell;
+        objects.Position(object_index) = object_position;
+        object_index = objects.Link(object_index);
     }
 }
 
 template <size_t pass, bool cached>
-__global__ void SolveCollisions_ManyRows(
-    const GridCell* cells,
-    VerletObject* objects,
-    const uint32_t* original_indices,
-    const uint32_t* last_occupied_cell)
+__global__ void
+SolveCollisions_ManyRows(const GridCell* cells, ObjectStorage storage, const uint32_t* last_occupied_cell)
 {
     constexpr Vec2<size_t> offset{pass % 3, pass / 3};
     constexpr auto grid_size = constants::kGridSize;
@@ -287,24 +279,27 @@ __global__ void SolveCollisions_ManyRows(
     const auto cell = sparse_grid_cell * 3 + offset + 1;
     if (sparse_grid_cell.x() >= sparse_grid_size.x() || sparse_grid_cell.y() >= sparse_grid_size.y()) return;
     if (last_occupied_cell && cell.y() * grid_size.x() + cell.x() > *last_occupied_cell) return;
-    SolveCollisionsFromCell<cached>(cell, grid_size.x(), cells, objects, original_indices);
+    SolveCollisionsFromCell<cached>(cell, grid_size.x(), cells, storage);
 }
 
+template <bool cached>
 __global__ void UpdatePositions(
     size_t num_objects,
-    VerletObject* objects,
+    ObjectStorage storage,
     Vec2f* previous_positions,
     Vec2f gravity,
     float velocity_damping)
 {
+    DeviceObjects<cached> objects{storage};
     const size_t object_index = threadIdx.x + blockIdx.x * blockDim.x;
     if (object_index >= num_objects) return;
-    UpdatePosition(objects[object_index].position, previous_positions[object_index], gravity, velocity_damping);
+    UpdatePosition(objects.Position(object_index), previous_positions[object_index], gravity, velocity_damping);
 }
 __global__ void CacheCells(
     verlet::GridCell* grid,
     const verlet::VerletObject* objects,
-    verlet::VerletObject* cached,
+    Vec2f* cached_positions,
+    uint32_t* cached_links,
     uint32_t* originals,
     uint32_t* allocated,
     const Vec2f* previous_positions,
@@ -330,15 +325,16 @@ __global__ void CacheCells(
         const auto object = objects[index];
         originals[offset] = index;
         cached_previous_positions[offset] = previous_positions[index];
-        cached[offset].position = object.position;
-        cached[offset].next_object_in_cell = --count ? offset + 1 : verlet::kInvalidObjectIndex;
+        cached_positions[offset] = object.position;
+        cached_links[offset] = --count ? offset + 1 : verlet::kInvalidObjectIndex;
         index = object.next_object_in_cell;
         ++offset;
     }
 }
 template <bool restore_history>
 __global__ void ScatterCache(
-    const verlet::VerletObject* cached,
+    const Vec2f* cached_positions,
+    const uint32_t* cached_links,
     verlet::VerletObject* objects,
     const uint32_t* originals,
     size_t count,
@@ -349,11 +345,11 @@ __global__ void ScatterCache(
     if (index < count)
     {
         auto& object = objects[originals[index]];
-        object.position = cached[index].position;
+        object.position = cached_positions[index];
         if constexpr (restore_history)
         {
             previous_positions[originals[index]] = cached_previous_positions[index];
-            const auto next = cached[index].next_object_in_cell;
+            const auto next = cached_links[index];
             object.next_object_in_cell = next == verlet::kInvalidObjectIndex ? next : originals[next];
         }
     }
@@ -384,9 +380,8 @@ template <bool integrate>
 cudaError_t LaunchPopulateGrid(
     cudaStream_t& stream,
     GridCell* cells,
-    VerletObject* objects,
+    ObjectStorage objects,
     size_t num_objects,
-    const uint32_t* original_indices,
     uint32_t* last_occupied_cell,
     Vec2f* previous_positions)
 {
@@ -396,13 +391,12 @@ cudaError_t LaunchPopulateGrid(
             return result;
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
-    const auto kernel =
-        original_indices ? kernels_impl::PopulateGrid<true, integrate> : kernels_impl::PopulateGrid<false, integrate>;
+    const auto kernel = objects.original_indices ? kernels_impl::PopulateGrid<true, integrate>
+                                                 : kernels_impl::PopulateGrid<false, integrate>;
     kernel<<<num_blocks, threads_per_block, 0, stream>>>(
         cells,
         objects,
         num_objects,
-        original_indices,
         last_occupied_cell,
         previous_positions);
     return cudaGetLastError();
@@ -413,46 +407,29 @@ cudaError_t LaunchPopulateGrid(
 cudaError_t Kernels::PopulateGrid(
     cudaStream_t& stream,
     GridCell* cells,
-    VerletObject* objects,
+    ObjectStorage objects,
     size_t num_objects,
-    const uint32_t* original_indices,
     uint32_t* last_occupied_cell)
 {
-    return LaunchPopulateGrid<false>(
-        stream,
-        cells,
-        objects,
-        num_objects,
-        original_indices,
-        last_occupied_cell,
-        nullptr);
+    return LaunchPopulateGrid<false>(stream, cells, objects, num_objects, last_occupied_cell, nullptr);
 }
 
 cudaError_t Kernels::UpdateAndPopulateGrid(
     cudaStream_t& stream,
     GridCell* cells,
-    VerletObject* objects,
+    ObjectStorage objects,
     size_t num_objects,
     Vec2f* previous_positions,
-    const uint32_t* original_indices,
     uint32_t* last_occupied_cell)
 {
-    return LaunchPopulateGrid<true>(
-        stream,
-        cells,
-        objects,
-        num_objects,
-        original_indices,
-        last_occupied_cell,
-        previous_positions);
+    return LaunchPopulateGrid<true>(stream, cells, objects, num_objects, last_occupied_cell, previous_positions);
 }
 
 cudaError_t Kernels::SolveCollisions(
     cudaStream_t& stream,
     GridCell* cells,
-    VerletObject* objects,
+    ObjectStorage objects,
     edt::Vec2<size_t> offset,
-    const uint32_t* original_indices,
     const uint32_t* last_occupied_cell)
 {
     const auto sparse_grid_size = kernels_impl::GetChunkSize2D(constants::kGridSize - 2, {3, 3}, offset);
@@ -462,17 +439,19 @@ cudaError_t Kernels::SolveCollisions(
     const size_t pass = offset.x() + offset.y() * 3;
     assert(pass < kCollisionKernels<false>.size());
     [[assume(pass < kCollisionKernels<false>.size())]];
-    const auto kernel = original_indices ? kCollisionKernels<true>[pass] : kCollisionKernels<false>[pass];
-    kernel<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects, original_indices, last_occupied_cell);
+    const auto kernel = objects.original_indices ? kCollisionKernels<true>[pass] : kCollisionKernels<false>[pass];
+    kernel<<<num_blocks, threads_per_block, 0, stream>>>(cells, objects, last_occupied_cell);
     return cudaGetLastError();
 }
 
 cudaError_t
-Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, VerletObject* objects, Vec2f* previous_positions)
+Kernels::UpdatePositions(cudaStream_t& stream, size_t num_objects, ObjectStorage objects, Vec2f* previous_positions)
 {
     const uint32_t threads_per_block = 256;
     const uint32_t num_blocks = (static_cast<uint32_t>(num_objects) + threads_per_block - 1) / threads_per_block;
-    kernels_impl::UpdatePositions<<<num_blocks, threads_per_block, 0, stream>>>(
+    const auto kernel =
+        objects.original_indices ? kernels_impl::UpdatePositions<true> : kernels_impl::UpdatePositions<false>;
+    kernel<<<num_blocks, threads_per_block, 0, stream>>>(
         num_objects,
         objects,
         previous_positions,
@@ -495,7 +474,8 @@ cudaError_t Kernels::CacheGrid(
     kernels_impl::CacheCells<<<num_blocks, threads_per_block, 0, stream>>>(
         cells,
         objects,
-        cache.objects,
+        cache.positions,
+        cache.links,
         cache.original_indices,
         &cache.metadata->object_count,
         previous_positions,
@@ -515,7 +495,8 @@ cudaError_t Kernels::RestorePositions(
     const auto num_blocks = (num_objects + threads_per_block - 1) / threads_per_block;
     const auto kernel = previous_positions ? kernels_impl::ScatterCache<true> : kernels_impl::ScatterCache<false>;
     kernel<<<num_blocks, threads_per_block, 0, stream>>>(
-        cache.objects,
+        cache.positions,
+        cache.links,
         objects,
         cache.original_indices,
         num_objects,

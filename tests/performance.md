@@ -94,3 +94,14 @@ while removing seven separate integration launches and repeated position reads.
 Two alternating kernel comparisons measured 14.538 ms for the starting implementation and 14.324 ms for fusion, a 1.5%
 reduction. Both produced `b338dde62d48c939`. A fresh 300-frame application comparison measured 18.147 ms versus 17.790 ms,
 and its klvk captures matched byte for byte. These are mean throughput results; they do not establish stable 60 FPS.
+
+### Separate cached positions and links
+
+The spatial cache now stores positions and linked-list indices in separate arrays. Collision traversal reads contiguous
+positions without fetching interleaved link fields. Canonical particle storage, original-ID ordering and arithmetic remain
+unchanged; the cache still costs 24 bytes per particle.
+
+Two alternating comparisons measured 14.187 ms with fusion and 12.242 ms with separate arrays, a 13.7% kernel reduction.
+All four runs produced `b338dde62d48c939`. The 300-frame application run measured 15.865 ms (63.0 FPS average), with a
+byte-identical klvk capture. The collision and determinism regression suites passed. Frame pacing still needs separate
+assessment before claiming stable 60 FPS.
