@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <bit>
 #include <charconv>
 #include <chrono>
 #include <cmath>
@@ -9,6 +10,7 @@
 #include <string_view>
 #include <vector>
 
+#include "../src/verlet_cuda/code/private/emitters/burst_layout.hpp"
 #include "../src/verlet_cuda/code/private/kernels.cu"
 
 namespace
@@ -29,12 +31,13 @@ int main(int argc, char** argv)
     {
         std::println(
             stderr,
-            "Usage: benchmark 100000|1000000|1500000|2000000 sparse|dense|lattice|coincident|packed "
+            "Usage: benchmark 100000|1000000|1500000|2000000|3000000|4000000 "
+            "sparse|dense|lattice|coincident|packed|burst "
             "grid|sweep|frame|evolve "
-            "[samples]");
+            "[samples] [direct|cached]");
         return EXIT_FAILURE;
     };
-    if (argc < 4 || argc > 5) return usage();
+    if (argc < 4 || argc > 6) return usage();
     const auto parse = [](std::string_view argument, size_t& value)
     {
         const auto result = std::from_chars(argument.data(), argument.data() + argument.size(), value);
@@ -43,17 +46,25 @@ int main(int argc, char** argv)
     size_t count = 0;
     size_t samples = 50;
     const std::string_view scene{argv[2]}, mode{argv[3]};
-    if (!parse(argv[1], count) || (count != 100000 && count != 1000000 && count != 1500000 && count != 2000000))
+    if (!parse(argv[1], count) || (count != 100000 && count != 1000000 && count != 1500000 && count != 2000000 &&
+                                   count != 3000000 && count != 4000000))
         return usage();
-    if (scene != "sparse" && scene != "dense" && scene != "lattice" && scene != "coincident" && scene != "packed")
+    if (scene != "sparse" && scene != "dense" && scene != "lattice" && scene != "coincident" && scene != "packed" &&
+        scene != "burst")
         return usage();
     if (mode != "grid" && mode != "sweep" && mode != "frame" && mode != "evolve") return usage();
-    if (argc == 5 && (!parse(argv[4], samples) || samples == 0 || samples > 100000)) return usage();
+    if (argc >= 5 && (!parse(argv[4], samples) || samples == 0 || samples > 100000)) return usage();
+
+    const std::string_view backend =
+        argc == 6 ? argv[5] : (count >= verlet::constants::kCollisionCacheMinObjects ? "cached" : "direct");
+    if (backend != "direct" && backend != "cached") return usage();
+    const bool use_cache = backend == "cached";
 
     cudaDeviceProp properties{};
     Check(cudaGetDeviceProperties(&properties, 0), "Get CUDA device properties");
     Check(cudaSetDevice(0), "Select CUDA device");
     std::println(stderr, "GPU: {}; {} particles; {}; {}", properties.name, count, scene, mode);
+    std::println(stderr, "Collision backend: {}", backend);
 
     std::vector<verlet::VerletObject> input(count);
     std::vector<verlet::GridCell> grid(verlet::constants::kGridNumCells);
@@ -80,9 +91,20 @@ int main(int argc, char** argv)
         std::println(stderr, "Packed population does not fit in the world");
         return EXIT_FAILURE;
     }
+    const auto burst =
+        scene == "burst" ? verlet::BurstLayout::Generate(count, true, true) : std::vector<verlet::Vec2f>{};
+    if (scene == "burst" && burst.size() != count)
+    {
+        std::println(stderr, "Packed burst does not fit in the world");
+        return EXIT_FAILURE;
+    }
     for (size_t index = 0; index < count; ++index)
     {
-        if (scene == "packed")
+        if (scene == "burst")
+        {
+            input[index].position = burst[index];
+        }
+        else if (scene == "packed")
         {
             const size_t row = index / columns;
             input[index].position = {
@@ -163,8 +185,31 @@ int main(int argc, char** argv)
         "Upload previous positions");
     cudaStream_t stream = nullptr;
     Check(cudaStreamCreate(&stream), "Create stream");
+    verlet::CollisionCache cache;
+    if (use_cache)
+    {
+        Check(cudaMalloc(&cache.previous_positions, previous_bytes), "Allocate cached previous positions");
+        Check(cudaMalloc(&cache.positions, previous_bytes), "Allocate collision objects");
+        Check(cudaMalloc(&cache.links, count * sizeof(uint32_t)), "Allocate cached links");
+        Check(cudaMalloc(&cache.original_indices, count * sizeof(uint32_t)), "Allocate collision indices");
+        Check(cudaMalloc(&cache.metadata, sizeof(verlet::CollisionCacheMetadata)), "Allocate collision counter");
+    }
+    const auto build_cache = [&]
+    {
+        if (use_cache)
+            Check(verlet::Kernels::CacheGrid(stream, cells, objects, previous_positions, cache), "Cache grid");
+    };
+    const auto restore_positions = [&]
+    {
+        if (use_cache)
+            Check(
+                verlet::Kernels::RestorePositions(stream, count, objects, previous_positions, cache),
+                "Restore positions");
+    };
+    size_t cache_frame = 0;
     const auto reset = [&]
     {
+        cache_frame = 0;
         Check(
             cudaMemcpyAsync(
                 previous_positions,
@@ -182,7 +227,14 @@ int main(int argc, char** argv)
         {
             for (size_t x = 0; x < 3; ++x)
             {
-                Check(verlet::Kernels::SolveCollisions(stream, cells, objects, {x, y}), "Launch collision sweep");
+                Check(
+                    verlet::Kernels::SolveCollisions(
+                        stream,
+                        cells,
+                        use_cache ? cache.GetObjects() : objects,
+                        {x, y},
+                        use_cache && mode != "sweep" ? &cache.metadata->last_occupied_cell : nullptr),
+                    "Launch collision sweep");
             }
         }
     };
@@ -196,18 +248,57 @@ int main(int argc, char** argv)
         }
         if (mode == "sweep")
         {
+            build_cache();
             sweep();
+            restore_positions();
             return;
         }
         for (size_t substep = 0; substep < verlet::constants::kNumSubSteps; ++substep)
         {
             Check(cudaMemsetAsync(cells, 255, grid_bytes, stream), "Clear grid");
-            Check(verlet::Kernels::PopulateGrid(stream, cells, objects, count), "Launch grid population");
+            if (substep == 0)
+            {
+                Check(
+                    verlet::Kernels::PopulateGrid(
+                        stream,
+                        cells,
+                        use_cache && cache_frame != 0 ? cache.GetObjects() : objects,
+                        count,
+                        use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                    "Launch grid population");
+            }
+            else
+            {
+                Check(
+                    verlet::Kernels::UpdateAndPopulateGrid(
+                        stream,
+                        cells,
+                        use_cache ? cache.GetObjects() : objects,
+                        count,
+                        use_cache ? cache.previous_positions : previous_positions,
+                        use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                    "Integrate and populate grid");
+            }
+            if (substep == 0 && cache_frame == 0) build_cache();
             sweep();
-            Check(
-                verlet::Kernels::UpdatePositions(stream, count, objects, previous_positions),
-                "Launch position update");
         }
+        Check(
+            verlet::Kernels::UpdatePositions(
+                stream,
+                count,
+                use_cache ? cache.GetObjects() : objects,
+                use_cache ? cache.previous_positions : previous_positions),
+            "Launch position update");
+        cache_frame = (cache_frame + 1) % verlet::constants::kCollisionCacheFrames;
+        if (use_cache)
+            Check(
+                verlet::Kernels::RestorePositions(
+                    stream,
+                    count,
+                    objects,
+                    cache_frame == 0 ? previous_positions : nullptr,
+                    cache),
+                "Restore render positions");
     };
 
     const auto warmup_start = std::chrono::steady_clock::now();
@@ -241,6 +332,7 @@ int main(int argc, char** argv)
         std::println("{},{},{},{},{:.8f}", sample, mode, scene, count, milliseconds);
     }
 
+    if (mode != "grid") restore_positions();
     Check(cudaMemcpy(input.data(), objects, object_bytes, cudaMemcpyDeviceToHost), "Read final positions");
     for (size_t index = 0; index < count; ++index)
     {
@@ -252,11 +344,34 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
         }
     }
+    Check(
+        cudaMemcpy(previous.data(), previous_positions, previous_bytes, cudaMemcpyDeviceToHost),
+        "Read previous positions");
+    uint64_t state_hash = 14695981039346656037ull;
+    for (size_t index = 0; index < count; ++index)
+    {
+        for (uint32_t value :
+             {std::bit_cast<uint32_t>(input[index].position.x()),
+              std::bit_cast<uint32_t>(input[index].position.y()),
+              input[index].next_object_in_cell,
+              std::bit_cast<uint32_t>(previous[index].x()),
+              std::bit_cast<uint32_t>(previous[index].y())})
+        {
+            state_hash ^= value;
+            state_hash *= 1099511628211ull;
+        }
+    }
+    std::println(stderr, "Final state hash: {:016x}", state_hash);
     Check(cudaEventDestroy(start), "Destroy start event");
     Check(cudaEventDestroy(end), "Destroy end event");
     Check(cudaStreamDestroy(stream), "Destroy stream");
     Check(cudaFree(previous_positions), "Free previous positions");
     Check(cudaFree(seed_previous_positions), "Free seed previous positions");
+    Check(cudaFree(cache.previous_positions), "Free cached previous positions");
+    Check(cudaFree(cache.links), "Free cached links");
+    Check(cudaFree(cache.positions), "Free collision objects");
+    Check(cudaFree(cache.original_indices), "Free collision indices");
+    Check(cudaFree(cache.metadata), "Free collision counter");
     Check(cudaFree(objects), "Free objects");
     Check(cudaFree(seed_objects), "Free seed objects");
     Check(cudaFree(cells), "Free grid");

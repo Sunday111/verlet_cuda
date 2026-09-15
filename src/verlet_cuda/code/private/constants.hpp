@@ -24,6 +24,8 @@ namespace constants
 // Maximum number of objects for a single cell
 inline constexpr size_t kGridMaxObjectsInCell = 4;
 inline constexpr size_t kMaxObjects = VERLET_MAX_OBJECTS;
+inline constexpr size_t kCollisionCacheMinObjects = 3000000;
+inline constexpr size_t kCollisionCacheFrames = 8;
 
 // The size of each grid cell in world coordinates
 inline constexpr Vec2<size_t> kGridCellSize{1, 1};
