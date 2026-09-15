@@ -105,3 +105,34 @@ Two alternating comparisons measured 14.187 ms with fusion and 12.242 ms with se
 All four runs produced `b338dde62d48c939`. The 300-frame application run measured 15.865 ms (63.0 FPS average), with a
 byte-identical klvk capture. The collision and determinism regression suites passed. Frame pacing still needs separate
 assessment before claiming stable 60 FPS.
+
+### Final validation and frame cadence
+
+Three further optimisation attempts were completed. Fusion and separate cached arrays were retained in separate commits;
+cache-lifetime tuning did not establish a further repeatable application gain, so the eight-frame bound remains.
+
+| Retained implementation | 300-frame application mean | Average throughput |
+| --- | ---: | ---: |
+| Starting spatial cache | 18.147 ms | 55.1 FPS |
+| Fused integration and population (`9749ccf`) | 17.790 ms | 56.2 FPS |
+| Separate cached positions and links (`8206553`) | 15.865 ms | 63.0 FPS |
+
+A 2,000-frame run of the final solver measured 15.383 ms. A repeat with buffered frame-cadence recording measured
+15.376 ms (65.0 FPS); a separate 300-frame repeat measured 15.882 ms. Recording is part of the explicitly requested
+benchmark only, writes after timing, and adds no per-frame GPU drain.
+
+| Final 2,000-frame cadence statistic | Result |
+| --- | ---: |
+| Median | 15.355 ms |
+| p95 | 16.851 ms |
+| p99 | 17.481 ms |
+| Maximum | 18.703 ms |
+| Intervals above 16.667 ms | 170 / 2,000 (8.5%) |
+
+The final implementation meets the average 60 FPS budget for this workload, but **does not yet deliver stable 60 FPS**.
+These are offscreen application intervals between `PostTick` calls, not physical presentation timestamps. The completed
+batch mean includes the final GPU drain. Clocks were unlocked and these results describe this GPU and settling interval.
+
+The final 300- and 2,000-frame klvk captures matched the original solver byte for byte, with the same SHA-256 values listed
+above. The 121 collision cases, multicell/integration checks, 24 GPU grid comparisons and seven bitwise replays passed.
+The forced-cache coincident-particle frame test also matched the direct backend (`27ce39aa4fb2a216`).

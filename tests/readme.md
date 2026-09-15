@@ -177,6 +177,11 @@ Configure the larger world above first. `--particles`, `--warmup`, and `--sample
 `--no-shuffle-storage` and `--no-packing` disable the corresponding emitter options.
 For headless validation, explicitly use `--presentation offscreen`; keep that result separate from visible timings.
 Logs, configurations, per-run CSVs and `summary.json` are saved under the required output directory.
+The application also writes `<particles>.csv.frames.csv`, containing consecutive `PostTick` intervals, with
+nearest-rank p50/p95/p99, maximum and the number above 16.667 ms summarised in JSON. Timings are buffered in memory
+and written after the measured interval. No additional per-frame GPU wait is inserted. These intervals describe
+application cadence, including simulation synchronisation and rendering submission; they are not display presentation
+timestamps. Batch mean timing still drains both APIs at the interval boundaries.
 Offscreen runs also save final captures.
 
 The CPU-only layout regression checks bounds, non-overlap, rejected oversized packing, and identical geometry across

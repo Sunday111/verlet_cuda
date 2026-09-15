@@ -37,6 +37,9 @@ struct VerletCudaApp::BurstBenchmark
     size_t samples = 300;
     std::chrono::steady_clock::time_point start;
     std::ofstream output;
+    std::ofstream frame_output;
+    std::vector<double> frame_times;
+    std::chrono::steady_clock::time_point previous_frame;
 };
 
 [[nodiscard]] static constexpr ImVec2 ToImVec(Vec2f v) noexcept
@@ -116,6 +119,9 @@ void VerletCudaApp::Initialize()
         klvk::ErrorHandling::Ensure(benchmark.warmup > 0 && benchmark.samples > 0, "Invalid benchmark interval");
         benchmark.output.open(config.at("output").get<std::string>());
         klvk::ErrorHandling::Ensure(benchmark.output.good(), "Cannot open benchmark output");
+        benchmark.frame_output.open(config.at("output").get<std::string>() + ".frames.csv");
+        klvk::ErrorHandling::Ensure(benchmark.frame_output.good(), "Cannot open frame timing output");
+        benchmark.frame_times.reserve(benchmark.samples);
         SetTargetFramerate(std::nullopt);
         BurstEmitter emitter;
         emitter.shuffle_storage = config.value("shuffle_storage", true);
@@ -144,6 +150,13 @@ void VerletCudaApp::PostTick()
     if (!burst_benchmark_) return;
     auto& benchmark = *burst_benchmark_;
     ++benchmark.frame;
+    if (benchmark.frame > benchmark.warmup && benchmark.frame <= benchmark.warmup + benchmark.samples)
+    {
+        const auto frame_end = std::chrono::steady_clock::now();
+        benchmark.frame_times.push_back(
+            std::chrono::duration<double, std::milli>(frame_end - benchmark.previous_frame).count());
+        benchmark.previous_frame = frame_end;
+    }
     if (benchmark.frame != benchmark.warmup && benchmark.frame != benchmark.warmup + benchmark.samples) return;
     GetDeviceContext().WaitIdle();
     CheckResult(cudaStreamSynchronize(cuda_stream_));
@@ -151,6 +164,7 @@ void VerletCudaApp::PostTick()
     if (benchmark.frame == benchmark.warmup)
     {
         benchmark.start = now;
+        benchmark.previous_frame = now;
         return;
     }
     const auto elapsed = std::chrono::duration<double, std::milli>(now - benchmark.start).count();
@@ -159,6 +173,11 @@ void VerletCudaApp::PostTick()
                      << used_objects_count_ << ',' << benchmark.samples << ',' << elapsed << ','
                      << elapsed / static_cast<double>(benchmark.samples) << ',' << framebuffer_size.x() << ','
                      << framebuffer_size.y() << '\n';
+    benchmark.frame_output << "sample,post_tick_ms\n";
+    for (size_t sample = 0; sample < benchmark.frame_times.size(); ++sample)
+        benchmark.frame_output << sample << ',' << benchmark.frame_times[sample] << '\n';
+    benchmark.frame_output.flush();
+    klvk::ErrorHandling::Ensure(benchmark.frame_output.good(), "Cannot write frame timing results");
     benchmark.output.flush();
     klvk::ErrorHandling::Ensure(benchmark.output.good(), "Cannot write benchmark results");
 }

@@ -3,6 +3,7 @@
 import argparse
 import csv
 import json
+import math
 from pathlib import Path
 import subprocess
 
@@ -28,6 +29,8 @@ def main():
         name = str(count)
         result_path = output / f'{name}.csv'
         result_path.unlink(missing_ok=True)
+        frame_path = Path(str(result_path) + '.frames.csv')
+        frame_path.unlink(missing_ok=True)
         config = {
             'version': 1, 'presentation': args.presentation,
             'clock': {'mode': 'fixed', 'step_seconds': 1 / 60},
@@ -60,6 +63,18 @@ def main():
                   'packing': args.packing, 'warmup': args.warmup, 'samples': args.samples}
         result['framebuffer_width'] = int(row['framebuffer_width'])
         result['framebuffer_height'] = int(row['framebuffer_height'])
+        if frame_path.exists():
+            with frame_path.open() as stream:
+                times = sorted(float(row['post_tick_ms']) for row in csv.DictReader(stream))
+            if len(times) != args.samples:
+                raise RuntimeError(f'Incomplete frame timings: {frame_path}')
+            result['post_tick_ms'] = {
+                'p50': times[math.ceil(len(times) * .50) - 1],
+                'p95': times[math.ceil(len(times) * .95) - 1],
+                'p99': times[math.ceil(len(times) * .99) - 1],
+                'max': times[-1],
+                'over_60fps_budget': sum(t > 1000 / 60 for t in times),
+            }
         results.append(result)
         (output / 'summary.json').write_text(json.dumps(results, indent=2) + '\n')
         print(f"{count:,}: {result['mean_ms']:.3f} ms ({args.presentation})", flush=True)
