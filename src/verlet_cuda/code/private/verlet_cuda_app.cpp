@@ -2,6 +2,7 @@
 
 #include "coloring/spawn_color/spawn_color_strategy_rainbow.hpp"
 #include "constants.hpp"
+#include "emitters/burst_emitter.hpp"
 #include "emitters/radial_emitter.hpp"
 #include "imgui.h"
 #include "klvk/error_handling.hpp"
@@ -383,6 +384,9 @@ void VerletCudaApp::Tick()
             {
                 emitters_.push_back(std::make_unique<RadialEmitter>());
             }
+
+            ImGui::SameLine();
+            if (ImGui::Button("New Burst")) emitters_.push_back(std::make_unique<BurstEmitter>());
 
             if (ImGui::Button("Enable All"))
             {

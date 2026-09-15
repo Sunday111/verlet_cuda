@@ -108,3 +108,31 @@ These positive-integer cache settings apply to all application translation units
 The capacity is an allocation limit, not a guarantee that particles fit without overlap in the default world.
 Use the larger world above for four million particles at the production radius of 0.5.
 Restore the defaults by setting width 1920, height 1040 and maximum objects 4000000.
+
+# Burst emitter
+
+In the application, open **Emitters → New Burst**, then enable the emitter. It queues the entire remaining
+particle budget in one activation, at rest, and uploads it together on the next frame. It does not emit batches
+over successive frames. **Rearm** permits another burst if capacity remains; cloning creates a disabled, rearmed copy.
+
+Both options are enabled by default:
+
+- **Shuffle storage** permutes the entire population with a fixed seed before insertion, reducing spatial locality.
+  Disabling it retains row order. Shuffling changes storage order, not the initial set of positions.
+- **Packing** uses dense staggered rows at 1.001 particle diameters, starting at the bottom world margin.
+  Disabling it distributes positions over the whole world on an even rectangular grid.
+
+A packed burst that cannot fit spawns nothing and disables the emitter with an explanatory message.
+The layout concerns the new burst; it does not prevent overlap with particles already in the simulation.
+Packed, shuffled storage is a demanding controlled workload, not a guarantee of the worst possible simulation state.
+
+The CPU-only layout regression checks bounds, non-overlap, rejected oversized packing, and identical geometry across
+ordered and shuffled storage. Run it explicitly:
+
+```sh
+clang++ -O2 -std=c++23 -DVERLET_WORLD_WIDTH=3840 -DVERLET_WORLD_HEIGHT=2160 \
+  -I src/verlet_cuda/code/private \
+  -I "$YAE_CLONED_REPOSITORIES_DIR/Sunday111/edt/main/modules/edt/code/public" \
+  tests/burst_layout.cpp -o /tmp/burst-layout-test
+/tmp/burst-layout-test
+```

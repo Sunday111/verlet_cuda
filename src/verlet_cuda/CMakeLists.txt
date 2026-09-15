@@ -12,6 +12,9 @@ set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/constants.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/cuda_util.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/burst_emitter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/burst_emitter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/burst_layout.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/emitter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/emitter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/emitters/emitter_type.hpp
