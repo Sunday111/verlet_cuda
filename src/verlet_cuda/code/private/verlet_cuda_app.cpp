@@ -1,5 +1,8 @@
 #include "verlet_cuda_app.hpp"
 
+#include <chrono>
+#include <fstream>
+
 #include "coloring/spawn_color/spawn_color_strategy_rainbow.hpp"
 #include "constants.hpp"
 #include "emitters/burst_emitter.hpp"
@@ -26,6 +29,15 @@ struct PushConstants
 };
 
 }  // namespace
+
+struct VerletCudaApp::BurstBenchmark
+{
+    size_t frame = 0;
+    size_t warmup = 120;
+    size_t samples = 300;
+    std::chrono::steady_clock::time_point start;
+    std::ofstream output;
+};
 
 [[nodiscard]] static constexpr ImVec2 ToImVec(Vec2f v) noexcept
 {
@@ -88,6 +100,67 @@ void VerletCudaApp::Initialize()
         zoom_power_ -= 0.1f;
         camera_.zoom = std::max(std::powf(1.1f, zoom_power_), std::numeric_limits<float>::lowest());
     } while (camera_.zoom > 1.f / constants::kWorldRange.Extent().Max());
+
+    if (const auto* application = GetDiagnosticApplicationConfig();
+        application && application->contains("burst_benchmark"))
+    {
+        const auto& config = application->at("burst_benchmark");
+        max_objects_count_ = config.at("particles").get<size_t>();
+        klvk::ErrorHandling::Ensure(
+            max_objects_count_ > 0 && max_objects_count_ <= constants::kMaxObjects,
+            "Benchmark population exceeds the configured capacity");
+        burst_benchmark_ = std::make_unique<BurstBenchmark>();
+        auto& benchmark = *burst_benchmark_;
+        benchmark.warmup = config.value("warmup", size_t{120});
+        benchmark.samples = config.value("samples", size_t{300});
+        klvk::ErrorHandling::Ensure(benchmark.warmup > 0 && benchmark.samples > 0, "Invalid benchmark interval");
+        benchmark.output.open(config.at("output").get<std::string>());
+        klvk::ErrorHandling::Ensure(benchmark.output.good(), "Cannot open benchmark output");
+        SetTargetFramerate(std::nullopt);
+        BurstEmitter emitter;
+        emitter.shuffle_storage = config.value("shuffle_storage", true);
+        emitter.packing = config.value("packing", true);
+        emitter.enabled = true;
+        emitter.Tick(*this);
+        SpawnPendingObjects();
+        klvk::ErrorHandling::Ensure(
+            used_objects_count_ == max_objects_count_,
+            "The entire burst must fit in the world");
+        fmt::print(
+            "Burst benchmark: {} particles, world {} x {}, shuffle={}, packing={}, warmup={}, samples={}\n",
+            used_objects_count_,
+            constants::kWorldRange.Extent().x(),
+            constants::kWorldRange.Extent().y(),
+            emitter.shuffle_storage,
+            emitter.packing,
+            benchmark.warmup,
+            benchmark.samples);
+    }
+}
+
+void VerletCudaApp::PostTick()
+{
+    klvk::Application::PostTick();
+    if (!burst_benchmark_) return;
+    auto& benchmark = *burst_benchmark_;
+    ++benchmark.frame;
+    if (benchmark.frame != benchmark.warmup && benchmark.frame != benchmark.warmup + benchmark.samples) return;
+    GetDeviceContext().WaitIdle();
+    CheckResult(cudaStreamSynchronize(cuda_stream_));
+    const auto now = std::chrono::steady_clock::now();
+    if (benchmark.frame == benchmark.warmup)
+    {
+        benchmark.start = now;
+        return;
+    }
+    const auto elapsed = std::chrono::duration<double, std::milli>(now - benchmark.start).count();
+    const auto framebuffer_size = GetWindow().GetFramebufferSize();
+    benchmark.output << "particles,frames,total_ms,mean_ms,framebuffer_width,framebuffer_height\n"
+                     << used_objects_count_ << ',' << benchmark.samples << ',' << elapsed << ','
+                     << elapsed / static_cast<double>(benchmark.samples) << ',' << framebuffer_size.x() << ','
+                     << framebuffer_size.y() << '\n';
+    benchmark.output.flush();
+    klvk::ErrorHandling::Ensure(benchmark.output.good(), "Cannot write benchmark results");
 }
 
 void VerletCudaApp::CreateCircleMaskTexture()

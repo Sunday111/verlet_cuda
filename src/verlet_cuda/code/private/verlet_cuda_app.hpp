@@ -39,6 +39,7 @@ public:
     void OnMouseScroll(const klvk::events::OnMouseScroll& event);
     [[nodiscard]] Vec2f GetMousePositionInWorldCoordinates() const;
     void Tick() override;
+    void PostTick() override;
     void AddObject(const VerletObject& object, Vec2f previous_position, const VerletAppearance& appearance)
     {
         if (GetRemainingObjectCapacity() != 0)
@@ -49,7 +50,7 @@ public:
         }
     }
 
-    [[nodiscard]] size_t GetMaxObjectsCount() const { return constants::kMaxObjects; }
+    [[nodiscard]] size_t GetMaxObjectsCount() const { return max_objects_count_; }
     [[nodiscard]] size_t GetObjectsCount() const { return used_objects_count_; }
     [[nodiscard]] size_t GetRemainingObjectCapacity() const
     {
@@ -65,6 +66,9 @@ private:
     void DrawObjects();
 
 private:
+    struct BurstBenchmark;
+    std::unique_ptr<BurstBenchmark> burst_benchmark_;
+    size_t max_objects_count_ = constants::kMaxObjects;
     cudaStream_t cuda_stream_{};
 
     klvk::events::EventSubscription event_subscription_;

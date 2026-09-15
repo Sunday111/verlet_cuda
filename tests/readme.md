@@ -109,7 +109,7 @@ The capacity is an allocation limit, not a guarantee that particles fit without 
 Use the larger world above for four million particles at the production radius of 0.5.
 Restore the defaults by setting width 1920, height 1040 and maximum objects 4000000.
 
-# Burst emitter
+# Burst emitter and application benchmark
 
 In the application, open **Emitters → New Burst**, then enable the emitter. It queues the entire remaining
 particle budget in one activation, at rest, and uploads it together on the next frame. It does not emit batches
@@ -125,6 +125,25 @@ Both options are enabled by default:
 A packed burst that cannot fit spawns nothing and disables the emitter with an explanatory message.
 The layout concerns the new burst; it does not prevent overlap with particles already in the simulation.
 Packed, shuffled storage is a demanding controlled workload, not a guarantee of the worst possible simulation state.
+
+The opt-in application benchmark invokes this same `BurstEmitter::Tick` and uses the ordinary simulation/rendering loop.
+After the entire burst is generated and uploaded, it advances 120 untimed frames by default, then measures 300 frames.
+Generation, upload, and settling are outside timing. Both GPU APIs are drained at the measurement boundaries;
+the reported duration is completed-batch wall time divided by the frame count, including simulation and rendering.
+The application FPS cap is disabled for this measurement. Swapchain/compositor pacing can still affect visible runs;
+these are throughput measurements, not physical scanout timestamps.
+
+```sh
+python3 tests/burst_benchmark.py --output /tmp/verlet-burst
+```
+
+The default runs 2m, 3m and 4m particles with both options enabled, using **visible windows** that close automatically.
+Visible runs use the window size assigned by the desktop; output records the actual framebuffer dimensions.
+Configure the larger world above first. `--particles`, `--warmup`, and `--samples` customise the run;
+`--no-shuffle-storage` and `--no-packing` disable the corresponding emitter options.
+For headless validation, explicitly use `--presentation offscreen`; keep that result separate from visible timings.
+Logs, configurations, per-run CSVs and `summary.json` are saved under the required output directory.
+Offscreen runs also save final captures.
 
 The CPU-only layout regression checks bounds, non-overlap, rejected oversized packing, and identical geometry across
 ordered and shuffled storage. Run it explicitly:
