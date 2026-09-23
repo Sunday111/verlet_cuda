@@ -1,7 +1,11 @@
 #include "verlet_cuda_app.hpp"
 
+#include <chrono>
+#include <fstream>
+
 #include "coloring/spawn_color/spawn_color_strategy_rainbow.hpp"
 #include "constants.hpp"
+#include "emitters/burst_emitter.hpp"
 #include "emitters/radial_emitter.hpp"
 #include "imgui.h"
 #include "klvk/error_handling.hpp"
@@ -25,6 +29,18 @@ struct PushConstants
 };
 
 }  // namespace
+
+struct VerletCudaApp::BurstBenchmark
+{
+    size_t frame = 0;
+    size_t warmup = 120;
+    size_t samples = 300;
+    std::chrono::steady_clock::time_point start;
+    std::ofstream output;
+    std::ofstream frame_output;
+    std::vector<double> frame_times;
+    std::chrono::steady_clock::time_point previous_frame;
+};
 
 [[nodiscard]] static constexpr ImVec2 ToImVec(Vec2f v) noexcept
 {
@@ -87,6 +103,83 @@ void VerletCudaApp::Initialize()
         zoom_power_ -= 0.1f;
         camera_.zoom = std::max(std::powf(1.1f, zoom_power_), std::numeric_limits<float>::lowest());
     } while (camera_.zoom > 1.f / constants::kWorldRange.Extent().Max());
+
+    if (const auto* application = GetDiagnosticApplicationConfig();
+        application && application->contains("burst_benchmark"))
+    {
+        const auto& config = application->at("burst_benchmark");
+        max_objects_count_ = config.at("particles").get<size_t>();
+        klvk::ErrorHandling::Ensure(
+            max_objects_count_ > 0 && max_objects_count_ <= constants::kMaxObjects,
+            "Benchmark population exceeds the configured capacity");
+        burst_benchmark_ = std::make_unique<BurstBenchmark>();
+        auto& benchmark = *burst_benchmark_;
+        benchmark.warmup = config.value("warmup", size_t{120});
+        benchmark.samples = config.value("samples", size_t{300});
+        klvk::ErrorHandling::Ensure(benchmark.warmup > 0 && benchmark.samples > 0, "Invalid benchmark interval");
+        benchmark.output.open(config.at("output").get<std::string>());
+        klvk::ErrorHandling::Ensure(benchmark.output.good(), "Cannot open benchmark output");
+        benchmark.frame_output.open(config.at("output").get<std::string>() + ".frames.csv");
+        klvk::ErrorHandling::Ensure(benchmark.frame_output.good(), "Cannot open frame timing output");
+        benchmark.frame_times.reserve(benchmark.samples);
+        SetTargetFramerate(std::nullopt);
+        BurstEmitter emitter;
+        emitter.shuffle_storage = config.value("shuffle_storage", true);
+        emitter.packing = config.value("packing", true);
+        emitter.enabled = true;
+        emitter.Tick(*this);
+        SpawnPendingObjects();
+        klvk::ErrorHandling::Ensure(
+            used_objects_count_ == max_objects_count_,
+            "The entire burst must fit in the world");
+        fmt::print(
+            "Burst benchmark: {} particles, world {} x {}, shuffle={}, packing={}, warmup={}, samples={}\n",
+            used_objects_count_,
+            constants::kWorldRange.Extent().x(),
+            constants::kWorldRange.Extent().y(),
+            emitter.shuffle_storage,
+            emitter.packing,
+            benchmark.warmup,
+            benchmark.samples);
+    }
+}
+
+void VerletCudaApp::PostTick()
+{
+    klvk::Application::PostTick();
+    if (!burst_benchmark_) return;
+    auto& benchmark = *burst_benchmark_;
+    ++benchmark.frame;
+    if (benchmark.frame > benchmark.warmup && benchmark.frame <= benchmark.warmup + benchmark.samples)
+    {
+        const auto frame_end = std::chrono::steady_clock::now();
+        benchmark.frame_times.push_back(
+            std::chrono::duration<double, std::milli>(frame_end - benchmark.previous_frame).count());
+        benchmark.previous_frame = frame_end;
+    }
+    if (benchmark.frame != benchmark.warmup && benchmark.frame != benchmark.warmup + benchmark.samples) return;
+    GetDeviceContext().WaitIdle();
+    CheckResult(cudaStreamSynchronize(cuda_stream_));
+    const auto now = std::chrono::steady_clock::now();
+    if (benchmark.frame == benchmark.warmup)
+    {
+        benchmark.start = now;
+        benchmark.previous_frame = now;
+        return;
+    }
+    const auto elapsed = std::chrono::duration<double, std::milli>(now - benchmark.start).count();
+    const auto framebuffer_size = GetWindow().GetFramebufferSize();
+    benchmark.output << "particles,frames,total_ms,mean_ms,framebuffer_width,framebuffer_height\n"
+                     << used_objects_count_ << ',' << benchmark.samples << ',' << elapsed << ','
+                     << elapsed / static_cast<double>(benchmark.samples) << ',' << framebuffer_size.x() << ','
+                     << framebuffer_size.y() << '\n';
+    benchmark.frame_output << "sample,post_tick_ms\n";
+    for (size_t sample = 0; sample < benchmark.frame_times.size(); ++sample)
+        benchmark.frame_output << sample << ',' << benchmark.frame_times[sample] << '\n';
+    benchmark.frame_output.flush();
+    klvk::ErrorHandling::Ensure(benchmark.frame_output.good(), "Cannot write frame timing results");
+    benchmark.output.flush();
+    klvk::ErrorHandling::Ensure(benchmark.output.good(), "Cannot write benchmark results");
 }
 
 void VerletCudaApp::CreateCircleMaskTexture()
@@ -168,6 +261,15 @@ std::span<VerletObject> VerletCudaApp::ReserveAndGetDevicePtr(size_t required_si
         CheckResult(cudaStreamSynchronize(cuda_stream_));
     }
 
+    if (new_capacity >= constants::kCollisionCacheMinObjects)
+    {
+        collision_previous_positions_ = MakeCudaArray<Vec2f>(new_capacity, cuda_stream_);
+        collision_positions_ = MakeCudaArray<Vec2f>(new_capacity, cuda_stream_);
+        collision_links_ = MakeCudaArray<uint32_t>(new_capacity, cuda_stream_);
+        collision_original_indices_ = MakeCudaArray<uint32_t>(new_capacity, cuda_stream_);
+        if (!collision_metadata_) collision_metadata_ = MakeCudaArray<CollisionCacheMetadata>(1, cuda_stream_);
+    }
+
     simulation_objects_ = std::move(new_simulation_objects);
     previous_positions_ = std::move(new_previous_positions);
     render_objects_buffers_ = std::move(new_buffers);
@@ -187,6 +289,23 @@ void VerletCudaApp::SpawnPendingObjects()
     GetDeviceContext().WaitIdle();
     CheckResult(cudaStreamSynchronize(cuda_stream_));
 
+    if (collision_cache_frame_ != 0)
+    {
+        const CollisionCache cache{
+            collision_positions_.get(),
+            collision_links_.get(),
+            collision_original_indices_.get(),
+            collision_metadata_.get(),
+            collision_previous_positions_.get()};
+        CheckResult(
+            Kernels::RestorePositions(
+                cuda_stream_,
+                used_objects_count_,
+                simulation_objects_.get(),
+                previous_positions_.get(),
+                cache));
+        collision_cache_frame_ = 0;
+    }
     const size_t new_count = used_objects_count_ + pending_objects_.size();
     const std::span<VerletObject> device_objects = ReserveAndGetDevicePtr(new_count);
     const auto device_appearances = appearances_buffer_.GetDeviceSpan<VerletAppearance>();
@@ -310,18 +429,49 @@ void VerletCudaApp::Tick()
 
             const std::span<VerletObject> device_objects{simulation_objects_.get(), used_objects_count_};
 
+            const bool use_cache = used_objects_count_ >= constants::kCollisionCacheMinObjects;
+            const CollisionCache cache{
+                collision_positions_.get(),
+                collision_links_.get(),
+                collision_original_indices_.get(),
+                collision_metadata_.get(),
+                collision_previous_positions_.get()};
             for (size_t substep = 0; substep != constants::kNumSubSteps; ++substep)
             {
                 CheckResult(
                     cudaMemsetAsync(grid_cells_.get(), 255, sizeof(GridCell) * constants::kGridNumCells, cuda_stream_));
-                CheckResult(
-                    Kernels::PopulateGrid(
-                        cuda_stream_,
-                        grid_cells_.get(),
-                        device_objects.data(),
-                        device_objects.size()),
-                    "PopulateGrid launch");
-
+                if (substep == 0)
+                {
+                    CheckResult(
+                        Kernels::PopulateGrid(
+                            cuda_stream_,
+                            grid_cells_.get(),
+                            use_cache && collision_cache_frame_ != 0 ? cache.GetObjects() : device_objects.data(),
+                            device_objects.size(),
+                            use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                        "PopulateGrid launch");
+                }
+                else
+                {
+                    CheckResult(
+                        Kernels::UpdateAndPopulateGrid(
+                            cuda_stream_,
+                            grid_cells_.get(),
+                            use_cache ? cache.GetObjects() : device_objects.data(),
+                            used_objects_count_,
+                            use_cache ? cache.previous_positions : previous_positions_.get(),
+                            use_cache ? &cache.metadata->last_occupied_cell : nullptr),
+                        "Integrate and populate grid");
+                }
+                if (use_cache && substep == 0 && collision_cache_frame_ == 0)
+                    CheckResult(
+                        Kernels::CacheGrid(
+                            cuda_stream_,
+                            grid_cells_.get(),
+                            device_objects.data(),
+                            previous_positions_.get(),
+                            cache),
+                        "CacheGrid launch");
                 for (size_t offset_y = 0; offset_y != 3; ++offset_y)
                 {
                     for (size_t offset_x = 0; offset_x != 3; ++offset_x)
@@ -330,22 +480,35 @@ void VerletCudaApp::Tick()
                             Kernels::SolveCollisions(
                                 cuda_stream_,
                                 grid_cells_.get(),
-                                device_objects.data(),
-                                {offset_x, offset_y}),
+                                use_cache ? cache.GetObjects() : device_objects.data(),
+                                {offset_x, offset_y},
+                                use_cache ? &cache.metadata->last_occupied_cell : nullptr),
                             "SolveCollisions launch at offset ({}, {})",
                             offset_x,
                             offset_y);
                     }
                 }
+            }
+            CheckResult(
+                Kernels::UpdatePositions(
+                    cuda_stream_,
+                    used_objects_count_,
+                    use_cache ? cache.GetObjects() : device_objects.data(),
+                    use_cache ? cache.previous_positions : previous_positions_.get()),
+                "UpdatePositions launch");
+
+            if (use_cache)
+            {
+                collision_cache_frame_ = (collision_cache_frame_ + 1) % constants::kCollisionCacheFrames;
                 CheckResult(
-                    Kernels::UpdatePositions(
+                    Kernels::RestorePositions(
                         cuda_stream_,
                         used_objects_count_,
                         device_objects.data(),
-                        previous_positions_.get()),
-                    "UpdatePositions launch");
+                        collision_cache_frame_ == 0 ? previous_positions_.get() : nullptr,
+                        cache),
+                    "RestorePositions launch");
             }
-
             CudaMemcpy(
                 device_objects,
                 render_objects_buffers_.at(render_snapshot_index_)
@@ -383,6 +546,9 @@ void VerletCudaApp::Tick()
             {
                 emitters_.push_back(std::make_unique<RadialEmitter>());
             }
+
+            ImGui::SameLine();
+            if (ImGui::Button("New Burst")) emitters_.push_back(std::make_unique<BurstEmitter>());
 
             if (ImGui::Button("Enable All"))
             {
